@@ -1,1 +1,29 @@
 @import "tailwindcss";
+
+/* Touch and mobile responsiveness improvements */
+@layer base {
+  html, body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+  }
+
+  /* Prevent zoom on focus on iOS Safari with 16px minimum on mobile inputs */
+  @media screen and (max-width: 640px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+}
+
+/* Hide scrollbars for clean horizontal tab bars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

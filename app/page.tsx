@@ -273,7 +273,7 @@ export default function Home() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1">
+      <main className="flex-1 pb-20 md:pb-8">
         {/* Tab 1: Grade & Bilhetes (Interactive Visual Cartaz) */}
         {activeTab === 'grid' && (
           <div className="animate-fade-in">

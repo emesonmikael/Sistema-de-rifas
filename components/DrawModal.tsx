@@ -77,12 +77,16 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
         sounds.playFanfare();
 
         // Confetti explosion in natural warm tones
-        confetti({
-          particleCount: 120,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: ['#D48166', '#5A5A40', '#eee4db', '#3d4b3d', '#ffffff'],
-        });
+        try {
+          confetti({
+            particleCount: 120,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#D48166', '#5A5A40', '#eee4db', '#3d4b3d', '#ffffff'],
+          });
+        } catch {
+          // Ignore if canvas is unsupported
+        }
       }
     };
 
@@ -92,7 +96,8 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
   const handleSendWinnerWhatsApp = () => {
     if (!currentWinner || !currentWinner.winnerPhone) return;
 
-    const msg = `🎉 *PARABÉNS! VOCÊ FOI O GANHADOR DA ${raffle.title}!* 🎉\n\n` +
+    const msg =
+      `🎉 *PARABÉNS! VOCÊ FOI O GANHADOR DA ${raffle.title}!* 🎉\n\n` +
       `🏆 *Prêmio Ganho:* ${currentWinner.prizeTitle}\n` +
       `🎟️ *Cota Sorteada:* [ ${currentWinner.number.toString().padStart(2, '0')} ]\n` +
       `👤 *Ganhador:* ${currentWinner.winnerName}\n` +
@@ -100,33 +105,35 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
       `Entre em contato com a coordenação para retirar o seu prêmio! Que São José abençoe! 🙏✨`;
 
     const link = generateWhatsAppLink({ phone: currentWinner.winnerPhone, message: msg });
-    window.open(link, '_blank');
+    if (typeof window !== 'undefined') {
+      window.location.assign(link);
+    }
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fade-in">
+    <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in pb-24 md:pb-12">
       {/* Draw Header */}
-      <div className="bg-[#5A5A40] text-white rounded-3xl p-6 shadow-md border border-[#484832] flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#484832] text-white flex items-center justify-center font-black shadow-xs border border-white/20">
-            <Trophy className="w-8 h-8 text-[#fdfaf7]" />
+      <div className="bg-[#5A5A40] text-white rounded-3xl p-5 sm:p-6 shadow-md border border-[#484832] flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#484832] text-white flex items-center justify-center font-black shadow-xs border border-white/20 shrink-0">
+            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-[#fdfaf7]" />
           </div>
-          <div>
-            <span className="text-xs uppercase tracking-wider font-extrabold bg-[#484832] text-white px-3 py-1 rounded-full border border-white/20">
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs uppercase tracking-wider font-extrabold bg-[#484832] text-white px-2.5 py-0.5 rounded-full border border-white/20">
               Auditável & Ao Vivo
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black font-serif tracking-tight mt-1">
+            <h2 className="text-xl sm:text-3xl font-black font-serif tracking-tight mt-1 truncate">
               Sorteador Eletrônico da Rifa
             </h2>
-            <p className="text-xs font-semibold text-[#e6dfd8]">{raffle.title}</p>
+            <p className="text-xs font-semibold text-[#e6dfd8] truncate">{raffle.title}</p>
           </div>
         </div>
       </div>
 
       {/* Main Draw Arena */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
         {/* Left Column: Config & Prize Selector */}
-        <div className="lg:col-span-4 bg-white rounded-3xl p-5 border border-[#eee4db] shadow-xs space-y-4">
+        <div className="lg:col-span-4 bg-white rounded-3xl p-4 sm:p-5 border border-[#eee4db] shadow-xs space-y-4">
           <div>
             <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider mb-2">
               Escolha o Prêmio a Sortear:
@@ -139,11 +146,12 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
                 return (
                   <button
                     key={p.order}
+                    type="button"
                     onClick={() => {
                       setSelectedPrizeOrder(p.order);
                       setCurrentWinner(previousWinner || null);
                     }}
-                    className={`w-full p-3 rounded-2xl border text-left transition-all ${
+                    className={`w-full p-3 rounded-2xl border text-left transition-all active:scale-95 ${
                       isSelected
                         ? 'bg-[#fdf1eb] border-[#D48166] shadow-xs ring-2 ring-[#f0c3b4]'
                         : 'bg-[#f8f5f0] border-[#eee4db] hover:bg-[#eee4db]'
@@ -180,7 +188,7 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
                 onChange={(e) => setOnlyPaid(e.target.checked)}
                 className="w-4 h-4 text-[#5A5A40] rounded focus:ring-[#5A5A40]"
               />
-              <label htmlFor="onlyPaidCheck" className="font-semibold text-[#2d2a26] cursor-pointer">
+              <label htmlFor="onlyPaidCheck" className="font-semibold text-[#2d2a26] cursor-pointer select-none">
                 Sortear apenas entre cotas PAGAS ({eligibleNumbers.length} cotas)
               </label>
             </div>
@@ -188,7 +196,7 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
         </div>
 
         {/* Right Column: Animated Rolling Drum & Winner Announcement */}
-        <div className="lg:col-span-8 bg-[#2d2a26] text-white rounded-3xl p-6 sm:p-8 border-2 border-[#5A5A40] shadow-xl flex flex-col items-center justify-center text-center relative overflow-hidden">
+        <div className="lg:col-span-8 bg-[#2d2a26] text-white rounded-3xl p-5 sm:p-8 border-2 border-[#5A5A40] shadow-xl flex flex-col items-center justify-center text-center relative overflow-hidden">
           {/* Background subtle glow */}
           <div className="absolute w-72 h-72 bg-[#D48166]/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -198,17 +206,17 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
             <span>Sorteando: {activePrize.title}</span>
           </div>
 
-          <h3 className="text-sm sm:text-base font-medium text-[#e6dfd8] max-w-md mb-6">
+          <h3 className="text-xs sm:text-base font-medium text-[#e6dfd8] max-w-md mb-4 sm:mb-6">
             {activePrize.description}
           </h3>
 
           {/* Animated Big Number Display */}
-          <div className="relative my-4">
-            <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-3xl bg-[#1e1c1a] border-2 border-[#D48166] shadow-inner flex flex-col items-center justify-center p-4">
-              <span className="text-6xl sm:text-7xl font-mono font-black text-[#D48166] tracking-tight">
+          <div className="relative my-2 sm:my-4">
+            <div className="w-36 h-36 sm:w-52 sm:h-52 rounded-3xl bg-[#1e1c1a] border-2 border-[#D48166] shadow-inner flex flex-col items-center justify-center p-3 sm:p-4">
+              <span className="text-5xl sm:text-7xl font-mono font-black text-[#D48166] tracking-tight">
                 {displayNumber !== null ? displayNumber.toString().padStart(2, '0') : '??'}
               </span>
-              <span className="text-[11px] uppercase tracking-widest text-[#a89d91] font-bold mt-1">
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-[#a89d91] font-bold mt-1">
                 {isDrawing ? 'Sorteando...' : 'Cota da Sorte'}
               </span>
             </div>
@@ -220,9 +228,10 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
 
           {/* Trigger Button */}
           <button
+            type="button"
             onClick={handleStartDraw}
             disabled={isDrawing || eligibleNumbers.length === 0}
-            className="mt-4 px-8 py-4 bg-[#D48166] hover:bg-[#c27055] disabled:opacity-50 text-white font-black text-base uppercase tracking-wider rounded-2xl shadow-lg transition-transform active:scale-95 flex items-center gap-2"
+            className="mt-4 px-6 sm:px-8 py-3.5 sm:py-4 bg-[#D48166] hover:bg-[#c27055] disabled:opacity-50 text-white font-black text-sm sm:text-base uppercase tracking-wider rounded-2xl shadow-lg transition-transform active:scale-95 flex items-center gap-2"
           >
             <Gift className="w-5 h-5" />
             <span>{isDrawing ? 'Sorteando Agora...' : 'Girar Roleta do Sorteio'}</span>
@@ -230,7 +239,7 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
 
           {/* Winner Showcase Card */}
           {currentWinner && (
-            <div className="mt-6 w-full max-w-md bg-white text-[#2d2a26] rounded-2xl p-5 border border-[#eee4db] shadow-xl animate-slide-up text-left">
+            <div className="mt-6 w-full max-w-md bg-white text-[#2d2a26] rounded-2xl p-4 sm:p-5 border border-[#eee4db] shadow-xl animate-slide-up text-left">
               <div className="flex items-center justify-between border-b border-[#eee4db] pb-2 mb-3">
                 <div className="flex items-center gap-2 text-[#5A5A40] font-black text-sm">
                   <Trophy className="w-5 h-5 text-[#D48166]" />
@@ -262,8 +271,9 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
 
               {currentWinner.winnerPhone && (
                 <button
+                  type="button"
                   onClick={handleSendWinnerWhatsApp}
-                  className="mt-3 w-full py-2.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors"
+                  className="mt-3 w-full py-2.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95"
                 >
                   <Send className="w-4 h-4" />
                   <span>Parabenizar Ganhador no WhatsApp</span>
@@ -276,7 +286,7 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
 
       {/* History of Drawn Winners */}
       {raffle.winners && raffle.winners.length > 0 && (
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#eee4db] shadow-xs space-y-3">
+        <div className="bg-white rounded-3xl p-4 sm:p-6 border border-[#eee4db] shadow-xs space-y-3">
           <h3 className="font-serif font-black text-base text-[#2d2a26] flex items-center gap-2">
             <Award className="w-5 h-5 text-[#D48166]" />
             <span>Histórico de Ganhadores Registrados</span>

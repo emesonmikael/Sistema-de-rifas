@@ -11,9 +11,6 @@ import {
   Check,
   Send,
   Sparkles,
-  QrCode,
-  ShieldCheck,
-  CreditCard,
   UserCheck,
 } from 'lucide-react';
 
@@ -71,12 +68,11 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
       alert('Por favor, informe seu WhatsApp para receber o comprovante.');
       return;
     }
-    sounds.playPop();
     setStep('pix');
+    sounds.playPop();
   };
 
   const handleFinalConfirm = () => {
-    sounds.playSuccess();
     onConfirm({
       numbers: sortedNumbers,
       buyerName: buyerName.trim(),
@@ -86,10 +82,12 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
       sellerName: activeSeller?.name,
       isImmediatePaid,
     });
+    sounds.playSuccess();
   };
 
   const handleNotifyWhatsApp = () => {
-    const message = `🎟️ *COMPROVANTE DE PAGAMENTO DE RIFA*\n\n` +
+    const message =
+      `🎟️ *COMPROVANTE DE PAGAMENTO DE RIFA*\n\n` +
       `Olá, fiz a transferência do PIX para a *${raffle.title}*!\n\n` +
       `👤 *Nome:* ${buyerName}\n` +
       `🔢 *Cotas Escolhidas:* [ ${sortedNumbers.map((n) => n.toString().padStart(2, '0')).join(', ')} ]\n` +
@@ -101,46 +99,49 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
       phone: activeSeller?.phone || raffle.pixKey,
       message,
     });
-    window.open(link, '_blank');
+    if (typeof window !== 'undefined') {
+      window.location.assign(link);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border-2 border-[#eee4db] overflow-hidden text-[#2d2a26]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl border-2 border-[#eee4db] overflow-hidden text-[#2d2a26]">
         {/* Modal Top Header */}
-        <div className="bg-[#5A5A40] text-white p-5 flex items-center justify-between border-b border-[#484832]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#484832] flex items-center justify-center text-white font-bold border border-white/20">
+        <div className="bg-[#5A5A40] text-white p-4 sm:p-5 flex items-center justify-between border-b border-[#484832] shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-[#484832] flex items-center justify-center text-white font-bold border border-white/20 shrink-0">
               <Sparkles className="w-4 h-4 text-[#fdfaf7]" />
             </div>
-            <div>
-              <h3 className="font-serif font-black text-base text-white">
+            <div className="min-w-0">
+              <h3 className="font-serif font-black text-sm sm:text-base text-white truncate">
                 {step === 'info' ? 'Finalizar Reserva dos Bilhetes' : 'Pagamento via PIX Oficial'}
               </h3>
-              <p className="text-xs text-[#e6dfd8]">{raffle.title}</p>
+              <p className="text-[11px] sm:text-xs text-[#e6dfd8] truncate">{raffle.title}</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-full text-white/80 hover:text-white transition-colors"
+            className="p-1.5 rounded-full text-white/80 hover:text-white transition-colors active:scale-95 shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 space-y-5">
+        {/* Modal Body - Scrollable */}
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
           {/* Order Summary Strip */}
-          <div className="bg-[#f8f5f0] rounded-2xl p-4 border border-[#eee4db] flex items-center justify-between">
-            <div>
-              <span className="text-xs text-[#7c736a] block">Cotas Selecionadas ({sortedNumbers.length}):</span>
-              <div className="font-mono font-bold text-sm text-[#2d2a26] mt-0.5">
+          <div className="bg-[#f8f5f0] rounded-2xl p-3.5 sm:p-4 border border-[#eee4db] flex items-center justify-between">
+            <div className="min-w-0">
+              <span className="text-xs text-[#7c736a] block">Cotas ({sortedNumbers.length}):</span>
+              <div className="font-mono font-bold text-xs sm:text-sm text-[#2d2a26] mt-0.5 truncate max-w-[170px] sm:max-w-xs">
                 {sortedNumbers.map((n) => n.toString().padStart(2, '0')).join(', ')}
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-xs text-[#7c736a] block">Total a Pagar:</span>
-              <span className="font-mono font-black text-lg text-[#D48166]">
+            <div className="text-right shrink-0">
+              <span className="text-xs text-[#7c736a] block">Total:</span>
+              <span className="font-mono font-black text-base sm:text-lg text-[#D48166]">
                 {formatCurrency(totalPrice)}
               </span>
             </div>
@@ -148,7 +149,7 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
 
           {/* STEP 1: Buyer Data Form */}
           {step === 'info' && (
-            <form onSubmit={handleProceedToPix} className="space-y-4">
+            <form onSubmit={handleProceedToPix} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider mb-1">
                   Seu Nome Completo <span className="text-[#D48166]">*</span>
@@ -158,7 +159,7 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                   placeholder="Ex: Maria das Graças Silva"
                   value={buyerName}
                   onChange={(e) => setBuyerName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
+                  className="w-full px-3.5 py-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
                   required
                 />
               </div>
@@ -172,7 +173,7 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                   placeholder="(88) 99999-9999"
                   value={buyerPhone}
                   onChange={(e) => setBuyerPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
+                  className="w-full px-3.5 py-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
                   required
                 />
                 <span className="text-[11px] text-[#7c736a] mt-1 block">
@@ -189,7 +190,7 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                 <select
                   value={sellerId}
                   onChange={(e) => setSellerId(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-xs font-semibold text-[#2d2a26] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5A5A40]"
+                  className="w-full px-3 py-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-xs sm:text-sm font-semibold text-[#2d2a26] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5A5A40]"
                 >
                   {sellers.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -203,14 +204,14 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
               <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 py-3 bg-[#D48166] hover:bg-[#c27055] text-white font-black text-sm rounded-xl shadow-md transition-all active:scale-98 flex items-center justify-center gap-2"
+                  className="flex-1 py-3.5 bg-[#D48166] hover:bg-[#c27055] text-white font-black text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <span>Avançar para Pagamento PIX</span>
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-3 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-semibold text-xs rounded-xl"
+                  className="px-4 py-3.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-semibold text-xs rounded-xl active:scale-95"
                 >
                   Cancelar
                 </button>
@@ -220,9 +221,9 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
 
           {/* STEP 2: PIX Payment Display & Confirmation */}
           {step === 'pix' && (
-            <div className="space-y-4 animate-fade-in">
+            <div className="space-y-3.5 animate-fade-in">
               {/* PIX Box */}
-              <div className="bg-[#484832] text-white p-4 rounded-2xl border border-[#5A5A40] space-y-3">
+              <div className="bg-[#484832] text-white p-3.5 sm:p-4 rounded-2xl border border-[#5A5A40] space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold uppercase tracking-wider text-[#fdfaf7]">Chave PIX Oficial:</span>
                   <span className="font-mono text-[11px] bg-[#3b3b28] px-2 py-0.5 rounded text-[#e6dfd8]">
@@ -230,11 +231,12 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                   </span>
                 </div>
 
-                <div className="bg-[#3b3b28] p-3 rounded-xl font-mono text-sm font-bold text-[#fdfaf7] break-all select-all flex items-center justify-between gap-2 border border-[#5A5A40]">
+                <div className="bg-[#3b3b28] p-3 rounded-xl font-mono text-xs sm:text-sm font-bold text-[#fdfaf7] break-all select-all flex items-center justify-between gap-2 border border-[#5A5A40]">
                   <span>{raffle.pixKey}</span>
                   <button
+                    type="button"
                     onClick={handleCopyPix}
-                    className="p-1.5 bg-[#D48166] hover:bg-[#c27055] text-white rounded-lg transition-colors shrink-0"
+                    className="p-2 bg-[#D48166] hover:bg-[#c27055] text-white rounded-lg transition-colors shrink-0 active:scale-95"
                     title="Copiar Chave"
                   >
                     {pixCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -248,25 +250,25 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
               </div>
 
               {/* Immediate Paid Checkbox */}
-              <div className="flex items-center gap-2 p-3 bg-[#f8f5f0] rounded-xl border border-[#eee4db]">
+              <div className="flex items-center gap-2.5 p-3 bg-[#f8f5f0] rounded-xl border border-[#eee4db]">
                 <input
                   type="checkbox"
                   id="paidCheck"
                   checked={isImmediatePaid}
                   onChange={(e) => setIsImmediatePaid(e.target.checked)}
-                  className="w-4 h-4 text-[#5A5A40] rounded focus:ring-[#5A5A40]"
+                  className="w-5 h-5 text-[#5A5A40] rounded focus:ring-[#5A5A40]"
                 />
-                <label htmlFor="paidCheck" className="text-xs font-bold text-[#2d2a26] cursor-pointer">
+                <label htmlFor="paidCheck" className="text-xs font-bold text-[#2d2a26] cursor-pointer select-none">
                   Já efetuei o pagamento agora (Confirmar como cota PAGA)
                 </label>
               </div>
 
               {/* Actions */}
-              <div className="space-y-2 pt-2">
+              <div className="space-y-2 pt-1">
                 <button
                   type="button"
                   onClick={handleFinalConfirm}
-                  className="w-full py-3 bg-[#5A5A40] hover:bg-[#484832] text-white font-black text-sm rounded-xl shadow-md transition-all active:scale-98 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-black text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Concluir e Gerar Bilhete Digital</span>
@@ -275,7 +277,7 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                 <button
                   type="button"
                   onClick={handleNotifyWhatsApp}
-                  className="w-full py-2.5 bg-[#f0f4ee] hover:bg-[#e4ede1] text-[#3d4b3d] border border-[#d1dec8] font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-3 bg-[#f0f4ee] hover:bg-[#e4ede1] text-[#3d4b3d] border border-[#d1dec8] font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors active:scale-95"
                 >
                   <Send className="w-4 h-4 text-[#5A5A40]" />
                   <span>Enviar Comprovante pelo WhatsApp</span>
@@ -284,7 +286,7 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setStep('info')}
-                  className="w-full py-1 text-xs text-[#7c736a] hover:text-[#2d2a26]"
+                  className="w-full py-2 text-xs text-[#7c736a] hover:text-[#2d2a26] font-medium"
                 >
                   Voltar e alterar dados
                 </button>

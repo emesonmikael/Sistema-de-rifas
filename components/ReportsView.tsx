@@ -155,20 +155,20 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-6 space-y-6 animate-fade-in">
       {/* Controls Header Banner - Hidden on print */}
       <div className="print:hidden bg-[#5A5A40] text-white rounded-3xl p-5 sm:p-6 shadow-md border border-[#484832] flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#484832] flex items-center justify-center font-bold text-white shadow-xs border border-white/20">
-            <FileText className="w-8 h-8 text-[#fdfaf7]" />
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#484832] flex items-center justify-center font-bold text-white shadow-xs border border-white/20 shrink-0">
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-[#fdfaf7]" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider font-extrabold bg-[#484832] text-[#fdfaf7] px-2.5 py-0.5 rounded-full border border-white/20">
+              <span className="text-[10px] sm:text-xs uppercase tracking-wider font-extrabold bg-[#484832] text-[#fdfaf7] px-2.5 py-0.5 rounded-full border border-white/20">
                 Central de Relatórios & Nota Oficial
               </span>
             </div>
-            <h2 className="text-xl sm:text-3xl font-black text-white font-serif tracking-tight mt-1">
+            <h2 className="text-xl sm:text-3xl font-black text-white font-serif tracking-tight mt-1 truncate">
               Relatórios, Nota & Prestação de Contas
             </h2>
-            <p className="text-xs text-[#e6dfd8]">
+            <p className="text-xs text-[#e6dfd8] truncate">
               Documentos oficiais, nota de lançamento, prêmios, balancete e auditoria de cotas
             </p>
           </div>
@@ -177,8 +177,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {onOpenEditRaffle && (
             <button
+              type="button"
               onClick={onOpenEditRaffle}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#484832] hover:bg-[#3b3b28] text-[#fdfaf7] font-bold text-xs rounded-xl border border-white/20 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#484832] hover:bg-[#3b3b28] text-[#fdfaf7] font-bold text-xs rounded-xl border border-white/20 transition-colors active:scale-95"
             >
               <Edit3 className="w-4 h-4" />
               <span>Editar Nota</span>
@@ -186,14 +187,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           )}
 
           <button
+            type="button"
             onClick={handleShareSummary}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#484832] hover:bg-[#3b3b28] text-[#fdfaf7] font-semibold text-xs rounded-xl border border-white/20 transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#484832] hover:bg-[#3b3b28] text-[#fdfaf7] font-semibold text-xs rounded-xl border border-white/20 transition-colors active:scale-95"
           >
             <Share2 className="w-4 h-4" />
             <span className="hidden sm:inline">WhatsApp</span>
           </button>
 
           <button
+            type="button"
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#D48166] hover:bg-[#c27055] text-white font-black text-xs rounded-xl shadow-xs transition-transform active:scale-95"
           >
@@ -206,11 +209,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       {/* Reports Tabs Selector - Hidden on print */}
       <div className="print:hidden flex items-center gap-2 overflow-x-auto pb-2 border-b border-[#eee4db]">
         <button
+          type="button"
           onClick={() => {
             setReportType('launch_note');
             sounds.playPop();
           }}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
             reportType === 'launch_note'
               ? 'bg-[#5A5A40] text-white shadow-xs scale-102'
               : 'bg-white text-[#7c736a] border border-[#eee4db] hover:bg-[#f8f5f0]'
@@ -221,11 +225,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => {
             setReportType('financial');
             sounds.playPop();
           }}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
             reportType === 'financial'
               ? 'bg-[#5A5A40] text-white shadow-xs scale-102'
               : 'bg-white text-[#7c736a] border border-[#eee4db] hover:bg-[#f8f5f0]'
@@ -236,11 +241,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => {
             setReportType('sellers');
             sounds.playPop();
           }}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
             reportType === 'sellers'
               ? 'bg-[#5A5A40] text-white shadow-xs scale-102'
               : 'bg-white text-[#7c736a] border border-[#eee4db] hover:bg-[#f8f5f0]'
@@ -251,11 +257,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => {
             setReportType('full_table');
             sounds.playPop();
           }}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
             reportType === 'full_table'
               ? 'bg-[#5A5A40] text-white shadow-xs scale-102'
               : 'bg-white text-[#7c736a] border border-[#eee4db] hover:bg-[#f8f5f0]'

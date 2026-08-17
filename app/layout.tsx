@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -11,10 +11,28 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({children}: {children: React.ReactNode}) {
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#5A5A40',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body suppressHydrationWarning className="bg-[#fdfaf7] antialiased min-h-screen text-[#423d38] selection:bg-[#D48166] selection:text-white">{children}</body>
+    <html lang="pt-BR" className="scroll-smooth">
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="format-detection" content="telephone=no" />
+      </head>
+      <body
+        suppressHydrationWarning
+        className="bg-[#fdfaf7] antialiased min-h-screen text-[#423d38] selection:bg-[#D48166] selection:text-white overscroll-y-none"
+      >
+        {children}
+      </body>
     </html>
   );
 }

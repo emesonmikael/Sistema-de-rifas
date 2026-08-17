@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Raffle, Seller, Expense, RaffleNumber } from '@/types/raffle';
 import { formatCurrency, generateWhatsAppLink } from '@/lib/pix';
 import { sounds } from '@/lib/sound';
@@ -79,7 +79,25 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
     .filter((n) => n.paymentMethod === 'CARTAO')
     .reduce((acc, curr) => acc + (curr.amountPaid || raffle.pricePerNumber), 0);
 
-  // Toggle pending numbers for bulk confirmation
+  // Per-seller performance
+  const sellerSummary = sellers.map((seller) => {
+    const sellerPaid = paidNumbers.filter((n) => n.sellerId === seller.id);
+    const sellerReserved = reservedNumbers.filter((n) => n.sellerId === seller.id);
+    const collected = sellerPaid.reduce((acc, n) => acc + (n.amountPaid || raffle.pricePerNumber), 0);
+    const cashInHand = sellerPaid
+      .filter((n) => n.paymentMethod === 'DINHEIRO')
+      .reduce((acc, n) => acc + (n.amountPaid || raffle.pricePerNumber), 0);
+
+    return {
+      seller,
+      paidCount: sellerPaid.length,
+      reservedCount: sellerReserved.length,
+      collected,
+      cashInHand,
+      targetProgress: Math.min(100, Math.round((sellerPaid.length / (seller.targetNumbers || 20)) * 100)),
+    };
+  });
+
   const handleToggleSelectPending = (num: number) => {
     if (selectedPendingNums.includes(num)) {
       setSelectedPendingNums(selectedPendingNums.filter((n) => n !== num));
@@ -98,200 +116,212 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
   const handleBulkConfirm = () => {
     if (selectedPendingNums.length === 0) return;
-    sounds.playSuccess();
     onBulkConfirmPayments(selectedPendingNums);
+    sounds.playSuccess();
     setSelectedPendingNums([]);
   };
 
-  const handleAddExpenseSubmit = (e: React.FormEvent) => {
+  const handleCreateExpense = (e: React.FormEvent) => {
     e.preventDefault();
-    const amt = parseFloat(expenseAmount);
-    if (!expenseDesc.trim() || isNaN(amt) || amt <= 0) return;
+    const amountNum = parseFloat(expenseAmount.replace(',', '.'));
+    if (!expenseDesc.trim() || isNaN(amountNum) || amountNum <= 0) {
+      alert('Preencha a descrição e um valor válido de despesa.');
+      return;
+    }
 
-    sounds.playSuccess();
     onAddExpense({
       description: expenseDesc.trim(),
-      amount: amt,
+      amount: amountNum,
       category: expenseCategory,
       date: new Date().toISOString().split('T')[0],
-      registeredBy: 'Coordenação',
+      registeredBy: 'Tesouraria Paroquial',
     });
 
+    sounds.playSuccess();
     setExpenseDesc('');
     setExpenseAmount('');
     setShowExpenseModal(false);
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fade-in">
-      {/* Header Banner */}
-      <div className="bg-[#5A5A40] text-white rounded-3xl p-6 shadow-md border border-[#484832] flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#484832] flex items-center justify-center font-bold text-white shadow-xs border border-white/20">
-            <DollarSign className="w-8 h-8 text-[#fdfaf7]" />
+    <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-24 md:pb-12">
+      {/* Title */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#5A5A40] text-white p-4 sm:p-6 rounded-3xl border border-[#484832] shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-[#484832] flex items-center justify-center font-bold text-white shadow-xs border border-white/20">
+            <DollarSign className="w-6 h-6 text-[#fdfaf7]" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider font-extrabold bg-[#484832] text-[#fdfaf7] px-2.5 py-0.5 rounded-full border border-white/20">
-                Auditoria & Gestão Financeira
-              </span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white font-serif tracking-tight mt-1">
-              Controle Financeiro da Rifa
+            <span className="text-[10px] sm:text-xs uppercase tracking-wider font-extrabold bg-[#484832] text-white px-2.5 py-0.5 rounded-full border border-white/20">
+              Tesouraria & Auditoria
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black text-white font-serif tracking-tight mt-0.5">
+              Painel Financeiro & Arrecadação
             </h2>
             <p className="text-xs text-[#e6dfd8]">{raffle.title} • {raffle.chapelOrOrgName}</p>
           </div>
         </div>
 
-        <button
-          onClick={() => setShowExpenseModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#D48166] hover:bg-[#c27055] text-white font-black text-xs rounded-xl shadow-xs transition-colors"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Registrar Despesa</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowExpenseModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#D48166] hover:bg-[#c27055] text-white font-bold text-xs rounded-xl shadow-xs transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Lançar Despesa</span>
+          </button>
+        </div>
       </div>
 
-      {/* Main KPI Cards Grid in Natural Tones */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-        {/* KPI 1: Receita Confirmada (Paga) */}
-        <div className="bg-[#5A5A40] text-white rounded-3xl p-5 border border-[#484832] shadow-sm">
-          <div className="flex items-center justify-between text-xs text-[#e6dfd8] font-bold mb-1">
-            <span>Receita Confirmada</span>
-            <CheckCircle2 className="w-4 h-4 text-white" />
+      {/* Main KPI Row (4 Cards) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        {/* Card 1: Total Confirmed Revenue */}
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#eee4db] shadow-xs">
+          <div className="flex items-center justify-between text-xs text-[#7c736a] font-semibold mb-1">
+            <span>Arrecadação Confirmada</span>
+            <CheckCircle2 className="w-4 h-4 text-[#5A5A40]" />
           </div>
-          <div className="text-2xl font-black text-white font-mono">
+          <div className="text-xl sm:text-2xl font-black text-[#5A5A40] font-mono">
             {formatCurrency(totalConfirmedRevenue)}
           </div>
-          <div className="text-xs text-[#e6dfd8] mt-2 font-medium">
-            {paidNumbers.length} cotas pagas ({Math.round((paidNumbers.length / raffle.totalNumbers) * 100)}%)
+          <div className="text-[11px] text-[#7c736a] mt-1 flex justify-between">
+            <span>{paidNumbers.length} cotas pagas</span>
+            <span>Meta: {formatCurrency(potentialTotalRevenue)}</span>
           </div>
         </div>
 
-        {/* KPI 2: A Confirmar (Reservas) */}
-        <div className="bg-white rounded-3xl p-5 border border-[#eee4db] shadow-xs">
-          <div className="flex items-center justify-between text-xs text-[#D48166] font-bold mb-1">
-            <span>A Confirmar (Reservas)</span>
-            <Clock className="w-4 h-4 text-[#D48166]" />
+        {/* Card 2: Net Profit (Líquido) */}
+        <div className="bg-[#f0f4ee] rounded-2xl p-3.5 sm:p-4 border border-[#d1dec8] shadow-xs">
+          <div className="flex items-center justify-between text-xs text-[#3d4b3d] font-bold mb-1">
+            <span>Saldo Líquido Atual</span>
+            <TrendingUp className="w-4 h-4 text-[#5A5A40]" />
           </div>
-          <div className="text-2xl font-black text-[#D48166] font-mono">
-            {formatCurrency(totalPendingRevenue)}
-          </div>
-          <div className="text-xs text-[#7c736a] mt-2 font-medium">
-            {reservedNumbers.length} cotas aguardando
-          </div>
-        </div>
-
-        {/* KPI 3: Despesas Totais */}
-        <div className="bg-white rounded-3xl p-5 border border-[#eee4db] shadow-xs">
-          <div className="flex items-center justify-between text-xs text-[#7c736a] font-bold mb-1">
-            <span>Despesas & Prêmios</span>
-            <Trash2 className="w-4 h-4 text-[#a89d91]" />
-          </div>
-          <div className="text-2xl font-black text-[#b35c43] font-mono">
-            {formatCurrency(totalExpenses)}
-          </div>
-          <div className="text-xs text-[#7c736a] mt-2 font-medium">
-            {raffle.expenses?.length || 0} custos cadastrados
-          </div>
-        </div>
-
-        {/* KPI 4: Lucro Líquido Real */}
-        <div className="bg-[#2d2a26] text-white rounded-3xl p-5 border border-[#5A5A40] shadow-sm">
-          <div className="flex items-center justify-between text-xs text-[#D48166] font-bold mb-1">
-            <span>Lucro Líquido Real</span>
-            <TrendingUp className="w-4 h-4 text-[#D48166]" />
-          </div>
-          <div className="text-2xl font-black text-[#D48166] font-mono">
+          <div className="text-xl sm:text-2xl font-black text-[#3d4b3d] font-mono">
             {formatCurrency(netProfit)}
           </div>
-          <div className="text-[11px] text-[#a89d91] mt-2 font-medium">
-            Arrecadado menos despesas
+          <div className="text-[10px] text-[#3d4b3d] mt-1 flex justify-between font-medium">
+            <span>Receita - Despesas</span>
+            <span>Potencial: {formatCurrency(potentialNetProfit)}</span>
           </div>
         </div>
 
-        {/* KPI 5: Meta Total */}
-        <div className="bg-white rounded-3xl p-5 border border-[#eee4db] shadow-xs">
-          <div className="flex items-center justify-between text-xs text-[#7c736a] font-bold mb-1">
-            <span>Meta Máxima (100%)</span>
-            <Sparkles className="w-4 h-4 text-[#5A5A40]" />
+        {/* Card 3: Pending Reserves */}
+        <div className="bg-[#fdf1eb] rounded-2xl p-3.5 sm:p-4 border border-[#f0c3b4] shadow-xs">
+          <div className="flex items-center justify-between text-xs text-[#D48166] font-bold mb-1">
+            <span>Aguardando Pagamento</span>
+            <Clock className="w-4 h-4 text-[#D48166]" />
           </div>
-          <div className="text-2xl font-black text-[#2d2a26] font-mono">
-            {formatCurrency(potentialTotalRevenue)}
+          <div className="text-xl sm:text-2xl font-black text-[#D48166] font-mono">
+            {formatCurrency(totalPendingRevenue)}
           </div>
-          <div className="text-xs text-[#7c736a] mt-2 font-medium">
-            {availableCount} cotas restantes
+          <div className="text-[10px] text-[#b35c43] mt-1 flex justify-between font-medium">
+            <span>{reservedNumbers.length} cotas pendentes</span>
+            {reservedNumbers.length > 0 && (
+              <button
+                type="button"
+                onClick={onReleaseExpired}
+                className="underline hover:text-[#2d2a26]"
+              >
+                Liberar expiradas
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Card 4: Total Expenses */}
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#eee4db] shadow-xs">
+          <div className="flex items-center justify-between text-xs text-[#7c736a] font-semibold mb-1">
+            <span>Total de Despesas</span>
+            <Receipt className="w-4 h-4 text-[#a89d91]" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-[#2d2a26] font-mono">
+            {formatCurrency(totalExpenses)}
+          </div>
+          <div className="text-[11px] text-[#7c736a] mt-1">
+            {(raffle.expenses || []).length} despesas registradas
           </div>
         </div>
       </div>
 
       {/* Payment Channels Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-[#eee4db] flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-[#eee4db] shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs text-[#7c736a] font-semibold">⚡ Arrecadação via PIX</span>
+            <span className="text-xs text-[#7c736a] font-semibold">Entradas via PIX Oficial</span>
             <div className="text-lg font-black text-[#5A5A40] font-mono mt-0.5">
               {formatCurrency(pixRevenue)}
             </div>
+            <span className="text-[10px] text-[#7c736a]">
+              {paidNumbers.filter((n) => n.paymentMethod === 'PIX').length} transferências diretas
+            </span>
           </div>
-          <span className="text-xs font-bold text-[#7c736a] bg-[#f8f5f0] px-2.5 py-1 rounded-lg">
-            {paidNumbers.filter((n) => n.paymentMethod === 'PIX').length} bilhetes
-          </span>
+          <div className="w-10 h-10 rounded-xl bg-[#f0f4ee] text-[#5A5A40] flex items-center justify-center font-bold">
+            PIX
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-[#eee4db] flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-[#eee4db] shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs text-[#7c736a] font-semibold">💵 Arrecadação em Dinheiro</span>
+            <span className="text-xs text-[#7c736a] font-semibold">Entradas em Dinheiro Físico</span>
             <div className="text-lg font-black text-[#D48166] font-mono mt-0.5">
               {formatCurrency(cashRevenue)}
             </div>
+            <span className="text-[10px] text-[#7c736a]">
+              {paidNumbers.filter((n) => n.paymentMethod === 'DINHEIRO').length} cotas com vendedores
+            </span>
           </div>
-          <span className="text-xs font-bold text-[#7c736a] bg-[#f8f5f0] px-2.5 py-1 rounded-lg">
-            {paidNumbers.filter((n) => n.paymentMethod === 'DINHEIRO').length} bilhetes
-          </span>
+          <div className="w-10 h-10 rounded-xl bg-[#fdf1eb] text-[#D48166] flex items-center justify-center font-bold">
+            R$
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-[#eee4db] flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-[#eee4db] shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs text-[#7c736a] font-semibold">💳 Cartão / Outros</span>
+            <span className="text-xs text-[#7c736a] font-semibold">Cartão / Outros Meios</span>
             <div className="text-lg font-black text-[#2d2a26] font-mono mt-0.5">
               {formatCurrency(cardRevenue)}
             </div>
+            <span className="text-[10px] text-[#7c736a]">
+              {paidNumbers.filter((n) => n.paymentMethod === 'CARTAO').length} pagamentos
+            </span>
           </div>
-          <span className="text-xs font-bold text-[#7c736a] bg-[#f8f5f0] px-2.5 py-1 rounded-lg">
-            {paidNumbers.filter((n) => n.paymentMethod === 'CARTAO').length} bilhetes
-          </span>
+          <div className="w-10 h-10 rounded-xl bg-[#f8f5f0] text-[#7c736a] flex items-center justify-center font-bold">
+            💳
+          </div>
         </div>
       </div>
 
-      {/* Two Columns: Pending Approvals Queue & Expenses Register */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Pending Payments Approval Queue */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-5 sm:p-6 border border-[#eee4db] shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#eee4db]">
+      {/* Two Column Layout: Pending Audit & Seller Cash Reconcile */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+        {/* Left: Pending Payment Audit Table */}
+        <div className="lg:col-span-7 bg-white rounded-3xl p-4 sm:p-6 border border-[#eee4db] shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-[#eee4db]">
             <div>
-              <h3 className="font-bold text-[#2d2a26] text-base flex items-center gap-2">
-                <Clock className="w-5 h-5 text-[#D48166]" />
-                <span>Fila de Confirmação de Pagamentos ({reservedNumbers.length})</span>
+              <h3 className="font-bold text-base text-[#2d2a26] flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[#5A5A40]" />
+                <span>Auditoria de Cotas Reservadas ({reservedNumbers.length})</span>
               </h3>
               <p className="text-xs text-[#7c736a]">
-                Verifique os comprovantes e confirme os bilhetes reservados
+                Confirme os comprovantes PIX ou pagamentos entregues pelos compradores
               </p>
             </div>
 
             {reservedNumbers.length > 0 && (
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={handleSelectAllPending}
-                  className="px-2.5 py-1 text-xs font-semibold text-[#423d38] bg-[#f8f5f0] hover:bg-[#eee4db] rounded-lg transition-colors"
+                  className="px-2.5 py-1 text-xs font-semibold text-[#423d38] bg-[#f8f5f0] hover:bg-[#eee4db] rounded-lg transition-colors active:scale-95"
                 >
                   {selectedPendingNums.length === reservedNumbers.length ? 'Desmarcar' : 'Marcar Todos'}
                 </button>
 
                 {selectedPendingNums.length > 0 && (
                   <button
+                    type="button"
                     onClick={handleBulkConfirm}
-                    className="px-3 py-1 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-lg shadow-xs transition-colors"
+                    className="px-3 py-1 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-lg shadow-xs transition-colors active:scale-95"
                   >
                     Confirmar ({selectedPendingNums.length})
                   </button>
@@ -352,17 +382,19 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
+                              type="button"
                               onClick={() => {
                                 sounds.playSuccess();
                                 onConfirmPayment(item.number);
                               }}
-                              className="px-2.5 py-1 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold rounded-lg text-[11px] shadow-xs"
+                              className="px-2.5 py-1 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold rounded-lg text-[11px] shadow-xs active:scale-95"
                             >
                               Aprovar
                             </button>
                             <button
+                              type="button"
                               onClick={() => onReleaseNumber(item.number)}
-                              className="px-2 py-1 text-[#D48166] hover:bg-[#fdf1eb] rounded-lg text-[11px] font-semibold"
+                              className="px-2 py-1 text-[#D48166] hover:bg-[#fdf1eb] rounded-lg text-[11px] font-semibold active:scale-95"
                             >
                               Liberar
                             </button>
@@ -378,133 +410,183 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
           <div className="flex justify-between items-center pt-2 text-xs text-[#7c736a]">
             <span>
-              💡 Reservas sem confirmação podem ser liberadas pelo coordenador.
+              Total pendente de confirmação: <strong>{formatCurrency(totalPendingRevenue)}</strong>
             </span>
-            <button
-              onClick={onReleaseExpired}
-              className="text-[#D48166] hover:underline font-semibold"
-            >
-              Liberar Reservas Expiradas
-            </button>
           </div>
         </div>
 
-        {/* Right Column: Expenses & Cost Ledger */}
-        <div className="lg:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border border-[#eee4db] shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#eee4db]">
-            <div>
-              <h3 className="font-bold text-[#2d2a26] text-base">Livro de Despesas & Custos</h3>
-              <p className="text-xs text-[#7c736a]">Registro para apuração exata do lucro</p>
-            </div>
-            <button
-              onClick={() => setShowExpenseModal(true)}
-              className="p-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] rounded-xl border border-[#eee4db] transition-colors"
-              title="Adicionar custo"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+        {/* Right: Seller Reconciliation & Cash in Hand */}
+        <div className="lg:col-span-5 bg-white rounded-3xl p-4 sm:p-6 border border-[#eee4db] shadow-xs space-y-4">
+          <div className="pb-3 border-b border-[#eee4db]">
+            <h3 className="font-bold text-base text-[#2d2a26]">Prestações de Conta da Equipe</h3>
+            <p className="text-xs text-[#7c736a]">Valores em espécie arrecadados por vendedor</p>
           </div>
 
-          {/* Expenses List */}
-          <div className="space-y-2 max-h-[380px] overflow-y-auto">
-            {(!raffle.expenses || raffle.expenses.length === 0) ? (
-              <div className="py-8 text-center text-[#7c736a] text-xs">
-                Nenhuma despesa registrada. Todo o valor arrecadado é lucro líquido!
-              </div>
-            ) : (
-              raffle.expenses.map((exp) => (
-                <div
-                  key={exp.id}
-                  className="p-3 bg-[#f8f5f0] rounded-2xl border border-[#eee4db] flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex-1">
-                    <div className="font-bold text-[#2d2a26]">{exp.description}</div>
-                    <div className="text-[11px] text-[#7c736a]">
-                      {exp.category} • {new Date(exp.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+          <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+            {sellerSummary.map(({ seller, paidCount, reservedCount, collected, cashInHand, targetProgress }) => (
+              <div
+                key={seller.id}
+                className="p-3.5 rounded-2xl bg-[#f8f5f0] border border-[#eee4db] space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-[#5A5A40] text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      {seller.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs sm:text-sm text-[#2d2a26] truncate">{seller.name}</div>
+                      <div className="text-[10px] text-[#7c736a]">{paidCount} pagas • {reservedCount} reservadas</div>
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="font-mono font-black text-[#b35c43]">
-                      -{formatCurrency(exp.amount)}
-                    </div>
-                    <button
-                      onClick={() => onDeleteExpense(exp.id)}
-                      className="text-[11px] text-[#a89d91] hover:text-[#b35c43] transition-colors mt-0.5"
-                    >
-                      Remover
-                    </button>
+                  <div className="text-right shrink-0">
+                    <span className="text-xs font-mono font-black text-[#5A5A40]">
+                      {formatCurrency(collected)}
+                    </span>
+                    <span className="text-[10px] text-[#7c736a] block">Total vendido</span>
                   </div>
                 </div>
-              ))
-            )}
+
+                {/* Cash in hand highlight for treasury */}
+                <div className="flex items-center justify-between text-xs bg-white p-2 rounded-xl border border-[#eee4db]">
+                  <span className="text-[#b35c43] font-bold flex items-center gap-1">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Em dinheiro físico:
+                  </span>
+                  <span className="font-mono font-black text-[#b35c43]">
+                    {formatCurrency(cashInHand)}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Add Expense Modal */}
-      {showExpenseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-[#eee4db] text-[#2d2a26]">
-            <h3 className="text-lg font-black text-[#2d2a26] font-serif uppercase mb-1">
-              Registrar Nova Despesa
-            </h3>
-            <p className="text-xs text-[#7c736a] mb-4">
-              Custos de aquisição de prêmios, taxas bancárias ou impressão
-            </p>
+      {/* Expenses Breakdown Box */}
+      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-[#eee4db] shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-[#eee4db]">
+          <div>
+            <h3 className="font-bold text-base text-[#2d2a26]">Despesas e Custos Registrados</h3>
+            <p className="text-xs text-[#7c736a]">Custos de impressão, compras de prêmios e material</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowExpenseModal(true)}
+            className="flex items-center gap-1 text-xs font-bold text-[#D48166] hover:underline active:scale-95"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span>Adicionar nova despesa</span>
+          </button>
+        </div>
 
-            <form onSubmit={handleAddExpenseSubmit} className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {(raffle.expenses || []).map((exp) => (
+            <div
+              key={exp.id}
+              className="p-3.5 rounded-2xl bg-[#f8f5f0] border border-[#eee4db] flex items-center justify-between text-xs"
+            >
+              <div className="min-w-0 pr-2">
+                <span className="font-bold text-[#2d2a26] block truncate">{exp.description}</span>
+                <span className="text-[11px] text-[#7c736a]">{exp.category} • {exp.date}</span>
+                <div className="font-mono font-black text-sm text-[#b35c43] mt-1">
+                  - {formatCurrency(exp.amount)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Excluir despesa "${exp.description}"?`)) {
+                    onDeleteExpense(exp.id);
+                  }
+                }}
+                className="p-2 text-[#b35c43] hover:bg-[#fbe7df] rounded-lg transition-colors active:scale-95 shrink-0"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+
+          {(raffle.expenses || []).length === 0 && (
+            <div className="col-span-full py-6 text-center text-[#7c736a] text-xs">
+              Nenhuma despesa lançada nesta rifa até o momento.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Expense Modal */}
+      {showExpenseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[92vh] flex flex-col shadow-2xl border-2 border-[#eee4db] overflow-hidden text-[#2d2a26]">
+            <div className="bg-[#5A5A40] text-white p-4 sm:p-5 flex items-center justify-between border-b border-[#484832] shrink-0">
+              <h3 className="font-serif font-black text-sm sm:text-base text-white">Lançar Nova Despesa</h3>
+              <button
+                type="button"
+                onClick={() => setShowExpenseModal(false)}
+                className="p-1 rounded-full text-white/80 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateExpense} className="p-4 sm:p-6 space-y-4 overflow-y-auto">
               <div>
-                <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">Descrição do Custo</label>
+                <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider mb-1">
+                  Descrição da Despesa <span className="text-[#D48166]">*</span>
+                </label>
                 <input
                   type="text"
-                  placeholder="Ex: Compra da cafeteira elétrica"
+                  placeholder="Ex: Compra de cartolina e impressão de bilhetes"
                   value={expenseDesc}
                   onChange={(e) => setExpenseDesc(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
+                  className="w-full px-3.5 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#5A5A40] focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">Valor (R$)</label>
+                <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider mb-1">
+                  Valor da Despesa (R$) <span className="text-[#D48166]">*</span>
+                </label>
                 <input
                   type="number"
                   step="0.01"
-                  min="0.01"
-                  placeholder="0,00"
+                  placeholder="Ex: 50.00"
                   value={expenseAmount}
                   onChange={(e) => setExpenseAmount(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-mono font-bold text-[#2d2a26] focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-bold text-[#2d2a26] focus:ring-2 focus:ring-[#5A5A40] focus:outline-none font-mono"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">Categoria</label>
+                <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider mb-1">
+                  Categoria
+                </label>
                 <select
                   value={expenseCategory}
                   onChange={(e) => setExpenseCategory(e.target.value as Expense['category'])}
-                  className="w-full px-3.5 py-2 text-xs bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-[#2d2a26] font-medium"
+                  className="w-full px-3 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-xs sm:text-sm font-semibold text-[#2d2a26]"
                 >
                   <option value="premio">Aquisição de Prêmios</option>
-                  <option value="divulgacao">Gráfica / Impressão de Cartazes</option>
-                  <option value="taxa">Taxas Bancárias / PIX</option>
-                  <option value="outro">Outras Despesas Operacionais</option>
+                  <option value="divulgacao">Divulgação / Gráfica</option>
+                  <option value="taxa">Taxas Administrativas</option>
+                  <option value="outro">Outras Despesas</option>
                 </select>
               </div>
 
-              <div className="flex gap-2 pt-3">
+              <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
+                  className="flex-1 py-3 bg-[#5A5A40] hover:bg-[#484832] text-white font-black text-xs rounded-xl shadow-xs active:scale-95"
                 >
                   Salvar Despesa
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowExpenseModal(false)}
-                  className="px-4 py-2.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-semibold text-xs rounded-xl transition-colors"
+                  className="px-4 py-3 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-semibold text-xs rounded-xl active:scale-95"
                 >
                   Cancelar
                 </button>

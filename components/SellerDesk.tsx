@@ -58,13 +58,7 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
   const [filterQuery, setFilterQuery] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // Get numbers associated with this seller
-  const sellerNumbers = useMemo(() => {
-    return Object.values(raffle.numbers).filter(
-      (n) => n.sellerId === activeSeller?.id || (!n.sellerId && n.status === 'available')
-    );
-  }, [raffle.numbers, activeSeller?.id]);
-
+  // Numbers associated with this seller
   const soldBySeller = useMemo(() => {
     return Object.values(raffle.numbers).filter(
       (n) => n.sellerId === activeSeller?.id && n.status === 'paid'
@@ -102,12 +96,12 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
   }, [raffle.numbers]);
 
   const handleToggleFastNum = (num: number) => {
-    sounds.playPop();
     if (selectedNums.includes(num)) {
       setSelectedNums(selectedNums.filter((n) => n !== num));
     } else {
       setSelectedNums([...selectedNums, num]);
     }
+    sounds.playPop();
   };
 
   const handleRegisterFastSale = (e: React.FormEvent) => {
@@ -141,18 +135,22 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
 
   const handleSendReminder = (item: RaffleNumber) => {
     if (!item.buyerPhone) return;
-    const msg = `Olá, ${item.buyerName}! Lembrete da sua reserva da cota *${item.number.toString().padStart(2, '0')}* na *${raffle.title}*.\n\n` +
+    const msg =
+      `Olá, ${item.buyerName}! Lembrete da sua reserva da cota *${item.number.toString().padStart(2, '0')}* na *${raffle.title}*.\n\n` +
       `💰 Valor: ${formatCurrency(raffle.pricePerNumber)}\n` +
       `🔑 Chave PIX: ${raffle.pixKey}\n\n` +
       `Podemos confirmar seu bilhete? Deus abençoe! 🙏`;
 
     const link = generateWhatsAppLink({ phone: item.buyerPhone, message: msg });
-    window.open(link, '_blank');
+    if (typeof window !== 'undefined') {
+      window.location.href = link;
+    }
   };
 
   const handleSendPaidReceipt = (item: RaffleNumber) => {
     if (!item.buyerPhone) return;
-    const msg = `🎉 *BILHETE CONFIRMADO - ${raffle.title}* 🎉\n\n` +
+    const msg =
+      `🎉 *BILHETE CONFIRMADO - ${raffle.title}* 🎉\n\n` +
       `👤 *Comprador:* ${item.buyerName}\n` +
       `🎟️ *Cota da Sorte:* [ ${item.number.toString().padStart(2, '0')} ]\n` +
       `💰 *Valor Pago:* ${formatCurrency(raffle.pricePerNumber)} (${item.paymentMethod || 'PIX'})\n` +
@@ -161,40 +159,57 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
       `Boa sorte e muito obrigado por apoiar a nossa capela! 🙏✨`;
 
     const link = generateWhatsAppLink({ phone: item.buyerPhone, message: msg });
-    window.open(link, '_blank');
+    if (typeof window !== 'undefined') {
+      window.location.href = link;
+    }
   };
 
+  // Filter list
+  const activeSellerNumbers = useMemo(() => {
+    return Object.values(raffle.numbers)
+      .filter((n) => n.sellerId === activeSeller?.id)
+      .filter((n) => {
+        if (!filterQuery.trim()) return true;
+        const q = filterQuery.toLowerCase().trim();
+        const numPad = n.number.toString().padStart(2, '0');
+        const buyer = (n.buyerName || '').toLowerCase();
+        const phone = (n.buyerPhone || '').toLowerCase();
+        return n.number.toString().includes(q) || numPad.includes(q) || buyer.includes(q) || phone.includes(q);
+      })
+      .sort((a, b) => a.number - b.number);
+  }, [raffle.numbers, activeSeller?.id, filterQuery]);
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-24 md:pb-12">
       {/* Seller Header & Switcher */}
-      <div className="bg-[#5A5A40] text-white rounded-3xl p-5 sm:p-6 border border-[#484832] shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#484832] flex items-center justify-center text-white font-black text-xl shadow-xs border border-white/20">
+      <div className="bg-[#5A5A40] text-white rounded-3xl p-4 sm:p-6 border border-[#484832] shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#484832] flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-xs border border-white/20 shrink-0">
             {activeSeller?.name.slice(0, 2).toUpperCase()}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider font-bold text-white bg-[#484832] px-2.5 py-0.5 rounded-full border border-white/20">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] sm:text-xs uppercase tracking-wider font-bold text-white bg-[#484832] px-2 py-0.5 rounded-full border border-white/20">
                 {activeSeller?.role === 'admin' ? 'Coordenador / Admin' : 'Vendedor Credenciado'}
               </span>
-              <span className="text-xs text-[#e6dfd8]">Balcão de Vendas</span>
+              <span className="text-[10px] sm:text-xs text-[#e6dfd8]">Balcão de Vendas</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white font-serif tracking-tight mt-0.5">
+            <h2 className="text-lg sm:text-2xl font-black text-white font-serif tracking-tight mt-0.5 truncate">
               {activeSeller?.name}
             </h2>
-            <p className="text-xs text-[#e6dfd8] font-mono">
+            <p className="text-[11px] sm:text-xs text-[#e6dfd8] font-mono">
               WhatsApp: {activeSeller?.phone}
             </p>
           </div>
         </div>
 
         {/* Switch Seller Profile */}
-        <div className="w-full md:w-auto bg-[#484832] p-3 rounded-2xl border border-white/10 flex items-center gap-3">
-          <div className="text-xs text-[#e6dfd8]">Trocar Vendedor:</div>
+        <div className="w-full md:w-auto bg-[#484832] p-2.5 sm:p-3 rounded-2xl border border-white/10 flex items-center justify-between md:justify-start gap-2">
+          <div className="text-xs text-[#e6dfd8] whitespace-nowrap">Vendedor:</div>
           <select
             value={activeSeller?.id}
             onChange={(e) => onSelectSeller(e.target.value)}
-            className="bg-[#3b3b28] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/20 focus:ring-2 focus:ring-[#D48166] focus:outline-none"
+            className="flex-1 md:flex-none bg-[#3b3b28] text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/20 focus:ring-2 focus:ring-[#D48166] focus:outline-none"
           >
             {sellers.map((s) => (
               <option key={s.id} value={s.id}>
@@ -206,14 +221,14 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
       </div>
 
       {/* Seller Performance Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Metric 1: Total Sold */}
-        <div className="bg-white rounded-2xl p-4 border border-[#eee4db] shadow-xs">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#eee4db] shadow-xs">
           <div className="flex items-center justify-between text-xs text-[#7c736a] font-semibold mb-1">
             <span>Cotas Vendidas</span>
             <Ticket className="w-4 h-4 text-[#5A5A40]" />
           </div>
-          <div className="text-2xl font-black text-[#2d2a26] font-mono">
+          <div className="text-xl sm:text-2xl font-black text-[#2d2a26] font-mono">
             {soldBySeller.length}{' '}
             <span className="text-xs font-normal text-[#7c736a]">/ meta {activeSeller?.targetNumbers || 20}</span>
           </div>
@@ -229,12 +244,12 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
         </div>
 
         {/* Metric 2: Total Collected */}
-        <div className="bg-white rounded-2xl p-4 border border-[#eee4db] shadow-xs">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#eee4db] shadow-xs">
           <div className="flex items-center justify-between text-xs text-[#7c736a] font-semibold mb-1">
             <span>Total Arrecadado</span>
             <DollarSign className="w-4 h-4 text-[#D48166]" />
           </div>
-          <div className="text-2xl font-black text-[#5A5A40] font-mono">
+          <div className="text-xl sm:text-2xl font-black text-[#5A5A40] font-mono">
             {formatCurrency(totalCollected)}
           </div>
           <span className="text-[11px] text-[#7c736a] mt-2 block">
@@ -243,56 +258,56 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
         </div>
 
         {/* Metric 3: Cash in Hand */}
-        <div className="bg-[#fdf1eb] rounded-2xl p-4 border border-[#f0c3b4] shadow-xs">
+        <div className="bg-[#fdf1eb] rounded-2xl p-3.5 sm:p-4 border border-[#f0c3b4] shadow-xs">
           <div className="flex items-center justify-between text-xs text-[#D48166] font-bold mb-1">
-            <span>Dinheiro em Espécie</span>
+            <span>Em Espécie</span>
             <TrendingUp className="w-4 h-4 text-[#D48166]" />
           </div>
-          <div className="text-2xl font-black text-[#b35c43] font-mono">
+          <div className="text-xl sm:text-2xl font-black text-[#b35c43] font-mono">
             {formatCurrency(cashInHand)}
           </div>
           <span className="text-[10px] text-[#b35c43] mt-1 block font-medium">
-            Repassar para a Tesouraria Paroquial
+            Dinheiro a repassar
           </span>
         </div>
 
         {/* Metric 4: PIX Collected */}
-        <div className="bg-[#f0f4ee] rounded-2xl p-4 border border-[#d1dec8] shadow-xs">
+        <div className="bg-[#f0f4ee] rounded-2xl p-3.5 sm:p-4 border border-[#d1dec8] shadow-xs">
           <div className="flex items-center justify-between text-xs text-[#3d4b3d] font-bold mb-1">
             <span>Recebido via PIX</span>
             <QrCode className="w-4 h-4 text-[#5A5A40]" />
           </div>
-          <div className="text-2xl font-black text-[#3d4b3d] font-mono">
+          <div className="text-xl sm:text-2xl font-black text-[#3d4b3d] font-mono">
             {formatCurrency(pixCollected)}
           </div>
           <span className="text-[10px] text-[#3d4b3d] mt-1 block font-medium">
-            Direto na conta da Capela
+            Direto na conta oficial
           </span>
         </div>
       </div>
 
       {successToast && (
-        <div className="p-4 bg-[#f0f4ee] border border-[#d1dec8] rounded-2xl text-[#3d4b3d] font-bold text-sm flex items-center gap-2 shadow-xs animate-fade-in">
+        <div className="p-3.5 sm:p-4 bg-[#f0f4ee] border border-[#d1dec8] rounded-2xl text-[#3d4b3d] font-bold text-xs sm:text-sm flex items-center gap-2 shadow-xs animate-fade-in">
           <CheckCircle2 className="w-5 h-5 text-[#5A5A40] shrink-0" />
           <span>{successToast}</span>
         </div>
       )}
 
       {/* Main Two-Column Workflow */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
         {/* Left Column: Quick Sales Terminal */}
-        <div className="lg:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border border-[#eee4db] shadow-sm space-y-4">
+        <div className="lg:col-span-5 bg-white rounded-3xl p-4 sm:p-6 border border-[#eee4db] shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-[#eee4db]">
             <div className="w-8 h-8 rounded-xl bg-[#f0f4ee] text-[#5A5A40] flex items-center justify-center font-bold">
               <PlusCircle className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-bold text-[#2d2a26] text-base">Registrar Nova Venda</h3>
-              <p className="text-xs text-[#7c736a]">Marcar número vendido e emitir recibo digital</p>
+              <p className="text-xs text-[#7c736a]">Marcar número vendido e emitir recibo</p>
             </div>
           </div>
 
-          <form onSubmit={handleRegisterFastSale} className="space-y-4">
+          <form onSubmit={handleRegisterFastSale} className="space-y-3.5">
             {/* Quick Number Selector Chips */}
             <div>
               <div className="flex items-center justify-between text-xs font-bold text-[#423d38] mb-1.5">
@@ -300,7 +315,7 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
                 <span className="text-[#5A5A40]">{availableNumbers.length} disponíveis</span>
               </div>
 
-              <div className="max-h-36 overflow-y-auto p-2 bg-[#f8f5f0] rounded-2xl border border-[#eee4db] grid grid-cols-6 gap-1.5">
+              <div className="max-h-40 overflow-y-auto p-2 bg-[#f8f5f0] rounded-2xl border border-[#eee4db] grid grid-cols-5 sm:grid-cols-6 gap-1.5">
                 {availableNumbers.map((num) => {
                   const isChecked = selectedNums.includes(num);
                   return (
@@ -308,10 +323,10 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
                       key={num}
                       type="button"
                       onClick={() => handleToggleFastNum(num)}
-                      className={`h-9 rounded-xl font-mono text-xs font-bold transition-all flex items-center justify-center ${
+                      className={`h-10 rounded-xl font-mono text-xs font-bold transition-all flex items-center justify-center active:scale-95 ${
                         isChecked
                           ? 'bg-[#D48166] text-white ring-2 ring-[#f0c3b4] scale-105 shadow-xs'
-                          : 'bg-white text-[#2d2a26] border border-[#eee4db] hover:border-[#5A5A40] hover:bg-[#fdfaf7]'
+                          : 'bg-white text-[#2d2a26] border border-[#eee4db] hover:border-[#5A5A40] active:bg-[#fdfaf7]'
                       }`}
                     >
                       {num.toString().padStart(2, '0')}
@@ -322,10 +337,10 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
 
               {selectedNums.length > 0 && (
                 <div className="mt-2 text-xs text-[#423d38] bg-[#fdf1eb] p-2 rounded-xl border border-[#f0c3b4] flex items-center justify-between">
-                  <span className="font-semibold">
-                    Selecionados: {selectedNums.sort((a, b) => a - b).map((n) => n.toString().padStart(2, '0')).join(', ')}
+                  <span className="font-semibold truncate max-w-[180px]">
+                    Marcados: {selectedNums.sort((a, b) => a - b).map((n) => n.toString().padStart(2, '0')).join(', ')}
                   </span>
-                  <span className="font-black text-[#D48166]">
+                  <span className="font-black text-[#D48166] shrink-0">
                     {formatCurrency(selectedNums.length * raffle.pricePerNumber)}
                   </span>
                 </div>
@@ -339,10 +354,10 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="Ex: Dona Maria do Socorro"
+                placeholder="Ex: Maria das Graças"
                 value={buyerName}
                 onChange={(e) => setBuyerName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
+                className="w-full px-3.5 py-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
                 required
               />
             </div>
@@ -356,13 +371,13 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
                 placeholder="(88) 99999-9999"
                 value={buyerPhone}
                 onChange={(e) => setBuyerPhone(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
+                className="w-full px-3.5 py-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none text-[#2d2a26]"
               />
             </div>
 
-            {/* Payment Method */}
+            {/* Payment Method Selector */}
             <div>
-              <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider mb-1.5">
                 Forma de Pagamento
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -370,60 +385,63 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
                   <button
                     key={method}
                     type="button"
-                    onClick={() => setPaymentMethod(method)}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-colors ${
+                    onClick={() => {
+                      setPaymentMethod(method);
+                      sounds.playPop();
+                    }}
+                    className={`py-2.5 rounded-xl font-bold text-xs border transition-all active:scale-95 ${
                       paymentMethod === method
-                        ? 'bg-[#5A5A40] text-white border-[#484832] shadow-xs'
-                        : 'bg-[#f8f5f0] text-[#423d38] border-[#eee4db] hover:bg-[#ede6df]'
+                        ? 'bg-[#5A5A40] text-white border-[#5A5A40] shadow-xs'
+                        : 'bg-[#f8f5f0] text-[#7c736a] border-[#eee4db] hover:bg-[#eee4db]'
                     }`}
                   >
-                    {method === 'PIX' ? '⚡ PIX' : method === 'DINHEIRO' ? '💵 Dinheiro' : '💳 Cartão'}
+                    {method}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Immediate Paid Checkbox */}
-            <div className="flex items-center gap-2 p-3 bg-[#f8f5f0] rounded-xl border border-[#eee4db]">
+            {/* Immediate Payment Switch */}
+            <div className="flex items-center gap-2.5 p-3 bg-[#f8f5f0] rounded-xl border border-[#eee4db]">
               <input
                 type="checkbox"
-                id="immediateCheck"
+                id="fastPaidCheck"
                 checked={isPaidImmediately}
                 onChange={(e) => setIsPaidImmediately(e.target.checked)}
-                className="w-4 h-4 text-[#5A5A40] rounded focus:ring-[#5A5A40]"
+                className="w-5 h-5 text-[#5A5A40] rounded focus:ring-[#5A5A40]"
               />
-              <label htmlFor="immediateCheck" className="text-xs font-bold text-[#2d2a26] cursor-pointer">
-                Pagamento já recebido (Marcar como PAGO imediatamente)
+              <label htmlFor="fastPaidCheck" className="text-xs font-bold text-[#2d2a26] cursor-pointer select-none">
+                Já recebeu o valor? (Confirmar como PAGO)
               </label>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
-              disabled={selectedNums.length === 0}
-              className="w-full py-3 bg-[#5A5A40] hover:bg-[#484832] disabled:opacity-50 text-white font-black text-sm rounded-xl shadow-md transition-all active:scale-98 flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-[#D48166] hover:bg-[#c27055] text-white font-black text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
             >
               <Check className="w-4 h-4 stroke-[3]" />
-              <span>Confirmar Venda ({selectedNums.length} cota{selectedNums.length > 1 ? 's' : ''})</span>
+              <span>Confirmar Registro de Venda</span>
             </button>
           </form>
         </div>
 
-        {/* Right Column: Manage Seller's Registered Numbers */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-5 sm:p-6 border border-[#eee4db] shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#eee4db]">
+        {/* Right Column: Numbers Managed by this Seller */}
+        <div className="lg:col-span-7 bg-white rounded-3xl p-4 sm:p-6 border border-[#eee4db] shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-[#eee4db]">
             <div>
-              <h3 className="font-bold text-[#2d2a26] text-base">Cotas deste Vendedor</h3>
+              <h3 className="font-bold text-[#2d2a26] text-base">Minhas Cotas Registradas</h3>
               <p className="text-xs text-[#7c736a]">
-                {soldBySeller.length} pagas • {reservedBySeller.length} aguardando pagamento
+                {activeSellerNumbers.length} cotas vinculadas ({reservedBySeller.length} reservadas, {soldBySeller.length} pagas)
               </p>
             </div>
 
-            {/* Search filter for this table */}
-            <div className="relative w-full sm:w-56">
+            {/* Filter Search */}
+            <div className="relative w-full sm:w-48">
               <Search className="w-3.5 h-3.5 text-[#a89d91] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Filtrar por nome/número..."
+                placeholder="Buscar cota..."
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#f8f5f0] border border-[#eee4db] rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5A5A40] text-[#2d2a26]"
@@ -431,123 +449,125 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
             </div>
           </div>
 
-          {/* Numbers Table */}
-          <div className="max-h-[480px] overflow-y-auto rounded-2xl border border-[#eee4db]">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#5A5A40] text-white sticky top-0">
-                <tr>
-                  <th className="py-2.5 px-3 font-mono">Nº</th>
-                  <th className="py-2.5 px-3">Comprador</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Pagamento</th>
-                  <th className="py-2.5 px-3 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#eee4db] bg-white">
-                {Object.values(raffle.numbers)
-                  .filter((n) => {
-                    if (n.sellerId !== activeSeller?.id) return false;
-                    if (filterQuery.trim()) {
-                      const q = filterQuery.toLowerCase();
-                      return (
-                        n.number.toString().includes(q) ||
-                        (n.buyerName || '').toLowerCase().includes(q) ||
-                        (n.buyerPhone || '').toLowerCase().includes(q)
-                      );
-                    }
-                    return true;
-                  })
-                  .sort((a, b) => a.number - b.number)
-                  .map((item) => {
-                    const isPaid = item.status === 'paid';
+          {/* List of Numbers */}
+          <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-1">
+            {activeSellerNumbers.map((item) => {
+              const isPaid = item.status === 'paid';
+              return (
+                <div
+                  key={item.number}
+                  className={`p-3 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                    isPaid
+                      ? 'bg-[#f8f5f0] border-[#eee4db]'
+                      : 'bg-[#fdf1eb] border-[#f0c3b4]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-11 h-11 rounded-xl font-mono font-black text-lg flex items-center justify-center shrink-0 shadow-xs ${
+                        isPaid ? 'bg-[#5A5A40] text-white' : 'bg-[#D48166] text-white'
+                      }`}
+                    >
+                      {item.number.toString().padStart(2, '0')}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-[#2d2a26] truncate">
+                          {item.buyerName || 'Sem nome registrado'}
+                        </span>
+                        <span
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                            isPaid
+                              ? 'bg-[#e8f0e8] text-[#3d4b3d]'
+                              : 'bg-[#fbe7df] text-[#D48166]'
+                          }`}
+                        >
+                          {isPaid ? 'Pago' : 'Reservado'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-[#7c736a] flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                        {item.buyerPhone && <span>📱 {item.buyerPhone}</span>}
+                        {item.paymentMethod && <span>💳 {item.paymentMethod}</span>}
+                        <span>💰 {formatCurrency(item.amountPaid || raffle.pricePerNumber)}</span>
+                      </div>
+                    </div>
+                  </div>
 
-                    return (
-                      <tr key={item.number} className="hover:bg-[#fdfaf7] transition-colors">
-                        <td className="py-2.5 px-3 font-mono font-black text-[#2d2a26] text-sm">
-                          {item.number.toString().padStart(2, '0')}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="font-bold text-[#2d2a26]">{item.buyerName || 'Sem nome'}</div>
-                          <div className="text-[11px] text-[#7c736a] font-mono">{item.buyerPhone || 'Sem telefone'}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          {isPaid ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#f0f4ee] text-[#3d4b3d] font-bold text-[10px]">
-                              <CheckCircle2 className="w-3 h-3 text-[#5A5A40]" />
-                              PAGO
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#fdf1eb] text-[#D48166] font-bold text-[10px]">
-                              <Clock className="w-3 h-3 text-[#D48166]" />
-                              RESERVA
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span className="font-mono text-[#423d38]">
-                            {formatCurrency(raffle.pricePerNumber)}
-                          </span>
-                          <span className="text-[10px] text-[#7c736a] block">
-                            {item.paymentMethod || 'PIX'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {/* Action: Open Digital Ticket */}
-                            <button
-                              onClick={() => onOpenReceipt(item)}
-                              className="p-1.5 text-[#423d38] hover:bg-[#f8f5f0] rounded-lg transition-colors"
-                              title="Visualizar Bilhete Digital"
-                            >
-                              <Receipt className="w-4 h-4" />
-                            </button>
+                  {/* Actions for this number */}
+                  <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-[#eee4db]/60">
+                    {!isPaid ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onConfirmPayment(item.number);
+                            sounds.playSuccess();
+                          }}
+                          className="flex items-center gap-1 px-3 py-2 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-xl shadow-2xs active:scale-95"
+                          title="Confirmar pagamento recebido"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Confirmar Pago</span>
+                        </button>
 
-                            {/* Action: Confirm Payment */}
-                            {!isPaid && (
-                              <button
-                                onClick={() => {
-                                  sounds.playSuccess();
-                                  onConfirmPayment(item.number);
-                                }}
-                                className="px-2 py-1 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold rounded-lg text-[11px] transition-colors"
-                                title="Confirmar pagamento recebido"
-                              >
-                                Confirmar
-                              </button>
-                            )}
+                        <button
+                          type="button"
+                          onClick={() => handleSendReminder(item)}
+                          className="p-2 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#5A5A40] rounded-xl border border-[#eee4db] active:scale-95"
+                          title="Enviar lembrete de PIX no WhatsApp"
+                        >
+                          <Send className="w-4 h-4 text-[#5A5A40]" />
+                        </button>
 
-                            {/* WhatsApp Notification */}
-                            {item.buyerPhone && (
-                              <button
-                                onClick={() => isPaid ? handleSendPaidReceipt(item) : handleSendReminder(item)}
-                                className="p-1.5 text-[#5A5A40] hover:bg-[#f0f4ee] rounded-lg transition-colors"
-                                title={isPaid ? 'Enviar recibo no WhatsApp' : 'Cobrar pelo WhatsApp'}
-                              >
-                                <Send className="w-4 h-4" />
-                              </button>
-                            )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Liberar número ${item.number} para outros compradores?`)) {
+                              onReleaseNumber(item.number);
+                            }
+                          }}
+                          className="p-2 text-[#b35c43] hover:bg-[#fbe7df] rounded-xl active:scale-95 text-xs font-bold"
+                          title="Cancelar e liberar número"
+                        >
+                          Liberar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onOpenReceipt(item)}
+                          className="flex items-center gap-1 px-3 py-2 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-bold text-xs rounded-xl border border-[#eee4db] active:scale-95"
+                          title="Visualizar Recibo Oficial"
+                        >
+                          <Receipt className="w-3.5 h-3.5 text-[#5A5A40]" />
+                          <span>Ver Recibo</span>
+                        </button>
 
-                            {/* Release Number */}
-                            {!isPaid && (
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Deseja cancelar a reserva do número ${item.number}?`)) {
-                                    onReleaseNumber(item.number);
-                                  }
-                                }}
-                                className="px-1.5 py-1 text-[#D48166] hover:bg-[#fdf1eb] rounded text-[11px] font-semibold"
-                                title="Cancelar reserva e liberar número"
-                              >
-                                Liberar
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
+                        <button
+                          type="button"
+                          onClick={() => handleSendPaidReceipt(item)}
+                          className="p-2 bg-[#f0f4ee] hover:bg-[#e4ede1] text-[#3d4b3d] rounded-xl border border-[#d1dec8] active:scale-95"
+                          title="Reenviar comprovante pelo WhatsApp"
+                        >
+                          <Send className="w-4 h-4 text-[#5A5A40]" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {activeSellerNumbers.length === 0 && (
+              <div className="py-12 text-center text-[#7c736a]">
+                <Clock className="w-8 h-8 text-[#a89d91] mx-auto mb-2" />
+                <p className="text-sm font-medium">Nenhuma cota registrada para este vendedor ainda.</p>
+                <p className="text-xs text-[#a89d91] mt-1">
+                  Utilize o painel ao lado para registrar suas primeiras vendas!
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
