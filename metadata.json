@@ -1,0 +1,6 @@
+{
+  "name": "RifaPix - Sistema de Rifas e Gestão Financeira",
+  "description": "Sistema completo de rifas com grade visual interativa, confirmação de pagamentos PIX/Dinheiro por vendedores cadastrados, controle financeiro em tempo real, sorteador eletrônico e relatórios automáticos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
