@@ -36,8 +36,10 @@ import { SellerManagerModal } from '@/components/SellerManagerModal';
 import { RaffleSettingsModal } from '@/components/RaffleSettingsModal';
 import { RaffleDetailsModal } from '@/components/RaffleDetailsModal';
 import { ExpandNumbersModal } from '@/components/ExpandNumbersModal';
+import { GoogleSheetsSyncModal } from '@/components/GoogleSheetsSyncModal';
 import { AuthModal } from '@/components/AuthModal';
 import { UserProfileModal } from '@/components/UserProfileModal';
+import { syncRaffleToGoogleSheets, getSheetsConfig } from '@/lib/sheetsSync';
 import { sounds } from '@/lib/sound';
 import { CheckCircle2, ShieldAlert, Lock, ArrowRight, UserCheck } from 'lucide-react';
 
@@ -59,6 +61,7 @@ export default function Home() {
   const [showEditRaffleModal, setShowEditRaffleModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showExpandNumbersModal, setShowExpandNumbersModal] = useState(false);
+  const [showSheetsModal, setShowSheetsModal] = useState(false);
 
   // Toast notifications
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
@@ -335,6 +338,7 @@ export default function Home() {
           }
           setShowSellerModal(true);
         }}
+        onOpenSheetsSync={() => setShowSheetsModal(true)}
         onResetDemo={handleResetDemo}
         activeRaffleTitle={activeRaffle.title}
       />
@@ -473,6 +477,7 @@ export default function Home() {
                 }
                 setShowEditRaffleModal(true);
               }}
+              onOpenSheetsSync={() => setShowSheetsModal(true)}
             />
           </div>
         )}
@@ -597,6 +602,16 @@ export default function Home() {
           isOpen={showExpandNumbersModal}
           onClose={() => setShowExpandNumbersModal(false)}
           onExpand={handleExpandRaffleNumbers}
+        />
+      )}
+
+      {/* Google Sheets Sync Modal */}
+      {showSheetsModal && activeRaffle && (
+        <GoogleSheetsSyncModal
+          raffle={activeRaffle}
+          isOpen={showSheetsModal}
+          onClose={() => setShowSheetsModal(false)}
+          onSyncSuccess={(msg) => showToast(msg, 'success')}
         />
       )}
 

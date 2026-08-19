@@ -14,6 +14,7 @@ import {
   User,
   ShieldCheck,
   LogIn,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Seller } from '@/types/raffle';
 
@@ -26,6 +27,7 @@ interface NavbarProps {
   onOpenProfileModal: () => void;
   onOpenNewRaffle: () => void;
   onOpenSellerManager: () => void;
+  onOpenSheetsSync: () => void;
   onResetDemo: () => void;
   activeRaffleTitle: string;
 }
@@ -39,6 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfileModal,
   onOpenNewRaffle,
   onOpenSellerManager,
+  onOpenSheetsSync,
   onResetDemo,
   activeRaffleTitle,
 }) => {
@@ -180,6 +183,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Entrar (Vendedor/ADM)</span>
               </button>
             )}
+
+            {/* Google Sheets Sync Button */}
+            <button
+              type="button"
+              onClick={onOpenSheetsSync}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#f0f9f1] hover:bg-[#e1f3e3] text-[#1e7e34] border border-[#c8e6c9] rounded-lg text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
+              title="Sincronizar com Planilha Google Sheets"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Planilha Sheets</span>
+            </button>
 
             {/* Team Manager Button (Always available for admin or fast switch) */}
             <button

@@ -20,6 +20,7 @@ import {
   Tag,
   ShieldCheck,
   Edit3,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { sounds } from '@/lib/sound';
 
@@ -27,12 +28,14 @@ interface ReportsViewProps {
   raffle: Raffle;
   sellers: Seller[];
   onOpenEditRaffle?: () => void;
+  onOpenSheetsSync?: () => void;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
   raffle,
   sellers,
   onOpenEditRaffle,
+  onOpenSheetsSync,
 }) => {
   const [reportType, setReportType] = useState<
     'launch_note' | 'financial' | 'sellers' | 'full_table' | 'parish_statement'
@@ -558,13 +561,27 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 Relação de Cotas e Compradores ({filteredNumbers.length} listados)
               </h3>
 
-              <button
-                onClick={handleExportCSV}
-                className="print:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Exportar CSV / Excel</span>
-              </button>
+              <div className="print:hidden flex items-center gap-2 flex-wrap">
+                {onOpenSheetsSync && (
+                  <button
+                    type="button"
+                    onClick={onOpenSheetsSync}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f0f9f1] hover:bg-[#e1f3e3] text-[#1e7e34] border border-[#c8e6c9] font-bold text-xs rounded-xl shadow-2xs transition-colors active:scale-95"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Sincronizar Google Sheets</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-xl shadow-xs transition-colors active:scale-95"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Exportar CSV / Excel</span>
+                </button>
+              </div>
             </div>
 
             {/* Filter & Search Bar - print:hidden */}
