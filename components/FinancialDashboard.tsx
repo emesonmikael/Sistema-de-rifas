@@ -29,6 +29,7 @@ interface FinancialDashboardProps {
   onReleaseExpired: () => void;
   onAddExpense: (expense: Omit<Expense, 'id'>) => void;
   onDeleteExpense: (expenseId: string) => void;
+  onOpenExpandNumbers?: () => void;
 }
 
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
@@ -40,6 +41,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   onReleaseExpired,
   onAddExpense,
   onDeleteExpense,
+  onOpenExpandNumbers,
 }) => {
   const [selectedPendingNums, setSelectedPendingNums] = useState<number[]>([]);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -162,7 +164,19 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {onOpenExpandNumbers && (
+            <button
+              type="button"
+              onClick={onOpenExpandNumbers}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#484832] hover:bg-[#3b3b28] text-[#fdfaf7] font-bold text-xs rounded-xl border border-white/20 shadow-xs transition-all active:scale-95"
+              title="Adicionar novas cotas para aumentar arrecadação"
+            >
+              <Plus className="w-4 h-4 text-[#f0c3b4] stroke-[3]" />
+              <span>Aumentar Cotas</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowExpenseModal(true)}

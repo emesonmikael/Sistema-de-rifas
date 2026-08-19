@@ -19,6 +19,7 @@ interface BuyerCheckoutModalProps {
   selectedNumbers: number[];
   sellers: Seller[];
   defaultSellerId?: string;
+  isSellerOrAdmin?: boolean;
   onClose: () => void;
   onConfirm: (payload: {
     numbers: number[];
@@ -36,6 +37,7 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
   selectedNumbers,
   sellers,
   defaultSellerId,
+  isSellerOrAdmin = false,
   onClose,
   onConfirm,
 }) => {
@@ -249,19 +251,31 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* Immediate Paid Checkbox */}
-              <div className="flex items-center gap-2.5 p-3 bg-[#f8f5f0] rounded-xl border border-[#eee4db]">
-                <input
-                  type="checkbox"
-                  id="paidCheck"
-                  checked={isImmediatePaid}
-                  onChange={(e) => setIsImmediatePaid(e.target.checked)}
-                  className="w-5 h-5 text-[#5A5A40] rounded focus:ring-[#5A5A40]"
-                />
-                <label htmlFor="paidCheck" className="text-xs font-bold text-[#2d2a26] cursor-pointer select-none">
-                  Já efetuei o pagamento agora (Confirmar como cota PAGA)
-                </label>
-              </div>
+              {/* Seller / Admin direct payment vs Public Buyer reservation disclaimer */}
+              {isSellerOrAdmin ? (
+                <div className="flex items-center gap-2.5 p-3 bg-[#f0f4ee] rounded-xl border border-[#d1dec8]">
+                  <input
+                    type="checkbox"
+                    id="paidCheck"
+                    checked={isImmediatePaid}
+                    onChange={(e) => setIsImmediatePaid(e.target.checked)}
+                    className="w-5 h-5 text-[#5A5A40] rounded focus:ring-[#5A5A40]"
+                  />
+                  <label htmlFor="paidCheck" className="text-xs font-bold text-[#2d2a26] cursor-pointer select-none">
+                    Confirmar pagamento imediatamente (Você é vendedor/coordenador autenticado)
+                  </label>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-[#fdf1eb] rounded-2xl border border-[#f0c3b4] space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#D48166]">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Processo Seguro de Confirmação</span>
+                  </div>
+                  <p className="text-[11px] text-[#7c736a] leading-relaxed">
+                    Suas cotas ficarão <strong>RESERVADAS</strong> com segurança. Ao concluir ou enviar o comprovante via WhatsApp, o vendedor ou a coordenação confirmará o recebimento do PIX para validar seu bilhete.
+                  </p>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="space-y-2 pt-1">
@@ -271,16 +285,20 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                   className="w-full py-3.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-black text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Concluir e Gerar Bilhete Digital</span>
+                  <span>
+                    {isSellerOrAdmin && isImmediatePaid
+                      ? 'Concluir Venda & Gerar Bilhete Pago'
+                      : 'Concluir Reserva & Salvar Cotas'}
+                  </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleNotifyWhatsApp}
-                  className="w-full py-3 bg-[#f0f4ee] hover:bg-[#e4ede1] text-[#3d4b3d] border border-[#d1dec8] font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors active:scale-95"
+                  className="w-full py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors active:scale-95 shadow-xs"
                 >
-                  <Send className="w-4 h-4 text-[#5A5A40]" />
-                  <span>Enviar Comprovante pelo WhatsApp</span>
+                  <Send className="w-4 h-4 text-white" />
+                  <span>Enviar Comprovante PIX no WhatsApp</span>
                 </button>
 
                 <button

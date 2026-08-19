@@ -32,6 +32,7 @@ interface RafflePosterHeroProps {
   onOpenDetails?: () => void;
   onOpenEditRaffle?: () => void;
   onOpenNewRaffle?: () => void;
+  onOpenExpandNumbers?: () => void;
 }
 
 export const RafflePosterHero: React.FC<RafflePosterHeroProps> = ({
@@ -42,6 +43,7 @@ export const RafflePosterHero: React.FC<RafflePosterHeroProps> = ({
   onOpenDetails,
   onOpenEditRaffle,
   onOpenNewRaffle,
+  onOpenExpandNumbers,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -102,6 +104,17 @@ export const RafflePosterHero: React.FC<RafflePosterHeroProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onOpenExpandNumbers && (
+            <button
+              onClick={onOpenExpandNumbers}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f0f4ee] hover:bg-[#e4ede1] text-[#3d4b3d] font-bold text-xs rounded-xl border border-[#d1dec8] shadow-2xs transition-colors"
+              title="Aumentar a quantidade de cotas disponíveis para venda"
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-[#5A5A40]" />
+              <span>+ Aumentar Cotas</span>
+            </button>
+          )}
+
           {onOpenEditRaffle && (
             <button
               onClick={onOpenEditRaffle}

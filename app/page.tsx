@@ -19,6 +19,7 @@ import {
   deleteExpense,
   createNewRaffle,
   updateRaffle,
+  expandRaffleNumbers,
   resetToInitialDemoData,
 } from '@/lib/storage';
 import { Raffle, Seller, RaffleNumber, Winner, Expense } from '@/types/raffle';
@@ -34,6 +35,7 @@ import { DigitalReceiptModal } from '@/components/DigitalReceiptModal';
 import { SellerManagerModal } from '@/components/SellerManagerModal';
 import { RaffleSettingsModal } from '@/components/RaffleSettingsModal';
 import { RaffleDetailsModal } from '@/components/RaffleDetailsModal';
+import { ExpandNumbersModal } from '@/components/ExpandNumbersModal';
 import { AuthModal } from '@/components/AuthModal';
 import { UserProfileModal } from '@/components/UserProfileModal';
 import { sounds } from '@/lib/sound';
@@ -56,6 +58,7 @@ export default function Home() {
   const [showNewRaffleModal, setShowNewRaffleModal] = useState(false);
   const [showEditRaffleModal, setShowEditRaffleModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showExpandNumbersModal, setShowExpandNumbersModal] = useState(false);
 
   // Toast notifications
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
@@ -116,6 +119,10 @@ export default function Home() {
   }) => {
     if (!activeRaffle) return;
 
+    // Security: Only logged-in sellers or admins can mark a ticket directly as paid.
+    // Public visitors/buyers will always have their ticket created as 'reserved'.
+    const canMarkPaid = Boolean(currentUser) && payload.isImmediatePaid;
+
     const res = reserveNumbersInRaffle({
       raffleId: activeRaffle.id,
       numbers: payload.numbers,
@@ -124,7 +131,7 @@ export default function Home() {
       buyerEmail: payload.buyerEmail,
       sellerId: payload.sellerId,
       sellerName: payload.sellerName,
-      isImmediatePaid: payload.isImmediatePaid,
+      isImmediatePaid: canMarkPaid,
     });
 
     if (res.success) {
@@ -275,6 +282,15 @@ export default function Home() {
     showToast(`Rifa "${updated.title}" atualizada com sucesso!`);
   };
 
+  // Expand raffle total numbers (e.g. +10, +25, +50)
+  const handleExpandRaffleNumbers = (additionalCount: number) => {
+    if (!activeRaffle) return;
+    const res = expandRaffleNumbers(activeRaffle.id, additionalCount);
+    if (res.success) {
+      showToast(res.message, 'success');
+    }
+  };
+
   // Reset to default São José Operário demo
   const handleResetDemo = () => {
     if (confirm('Deseja restaurar os dados de exemplo da Rifa de São José Operário?')) {
@@ -336,6 +352,13 @@ export default function Home() {
               totalAvailable={totalAvailable}
               onOpenCheckout={() => setShowCheckoutModal(true)}
               onOpenDetails={() => setShowDetailsModal(true)}
+              onOpenExpandNumbers={() => {
+                if (!isAdmin) {
+                  setShowAuthModal(true);
+                  return;
+                }
+                setShowExpandNumbersModal(true);
+              }}
               onOpenEditRaffle={() => {
                 if (!isAdmin) {
                   setShowAuthModal(true);
@@ -361,6 +384,13 @@ export default function Home() {
               onClearSelection={() => setSelectedNumbers([])}
               onOpenCheckout={() => setShowCheckoutModal(true)}
               onInspectNumber={(numData) => setShowReceiptModal(numData)}
+              onOpenExpandNumbers={() => {
+                if (!isAdmin) {
+                  setShowAuthModal(true);
+                  return;
+                }
+                setShowExpandNumbersModal(true);
+              }}
             />
           </div>
         )}
@@ -424,6 +454,7 @@ export default function Home() {
                 onReleaseExpired={handleReleaseExpired}
                 onAddExpense={handleAddExpense}
                 onDeleteExpense={handleDeleteExpense}
+                onOpenExpandNumbers={() => setShowExpandNumbersModal(true)}
               />
             )}
           </div>
@@ -499,6 +530,7 @@ export default function Home() {
           selectedNumbers={selectedNumbers}
           sellers={sellers}
           defaultSellerId={currentUser?.id || sellers[0]?.id}
+          isSellerOrAdmin={Boolean(currentUser)}
           onClose={() => setShowCheckoutModal(false)}
           onConfirm={handleCheckoutConfirm}
         />
@@ -555,6 +587,16 @@ export default function Home() {
             setShowDetailsModal(false);
             setShowEditRaffleModal(true);
           }}
+        />
+      )}
+
+      {/* Expand Numbers Modal (Aumentar Quantidade de Cotas da Rifa) */}
+      {showExpandNumbersModal && activeRaffle && (
+        <ExpandNumbersModal
+          raffle={activeRaffle}
+          isOpen={showExpandNumbersModal}
+          onClose={() => setShowExpandNumbersModal(false)}
+          onExpand={handleExpandRaffleNumbers}
         />
       )}
 

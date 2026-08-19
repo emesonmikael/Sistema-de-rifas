@@ -532,8 +532,42 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
                         )}
                       </div>
                     ) : (
-                      <div className="px-3.5 py-2.5 bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-bold text-[#2d2a26] text-sm">
-                        {totalNumbers} cotas (Fixo na rifa ativa para garantir vendas existentes)
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={raffle?.totalNumbers || 10}
+                            max="10000"
+                            value={totalNumbers}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              const minAllowed = raffle?.totalNumbers || 10;
+                              setTotalNumbers(isNaN(val) ? minAllowed : Math.max(minAllowed, val));
+                            }}
+                            className="w-full px-3.5 py-2 text-base bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-black text-[#5A5A40] focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none"
+                          />
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setTotalNumbers((prev) => Math.max(raffle?.totalNumbers || 10, prev + 10))}
+                              className="px-2.5 py-2 bg-[#f0f4ee] hover:bg-[#e4ede1] text-[#3d4b3d] font-bold text-xs rounded-xl border border-[#d1dec8] active:scale-95"
+                              title="Adicionar 10 cotas"
+                            >
+                              +10
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTotalNumbers((prev) => Math.max(raffle?.totalNumbers || 10, prev + 50))}
+                              className="px-2.5 py-2 bg-[#f0f4ee] hover:bg-[#e4ede1] text-[#3d4b3d] font-bold text-xs rounded-xl border border-[#d1dec8] active:scale-95"
+                              title="Adicionar 50 cotas"
+                            >
+                              +50
+                            </button>
+                          </div>
+                        </div>
+                        <span className="text-[11px] text-[#7c736a] block">
+                          Você pode aumentar o total a qualquer momento. Os números já vendidos permanecem seguros.
+                        </span>
                       </div>
                     )}
                   </div>

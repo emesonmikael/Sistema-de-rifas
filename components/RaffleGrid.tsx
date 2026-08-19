@@ -14,6 +14,7 @@ interface RaffleGridProps {
   onClearSelection: () => void;
   onOpenCheckout: () => void;
   onInspectNumber?: (numberData: RaffleNumber) => void;
+  onOpenExpandNumbers?: () => void;
 }
 
 export const RaffleGrid: React.FC<RaffleGridProps> = ({
@@ -24,6 +25,7 @@ export const RaffleGrid: React.FC<RaffleGridProps> = ({
   onClearSelection,
   onOpenCheckout,
   onInspectNumber,
+  onOpenExpandNumbers,
 }) => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'reserved' | 'paid' | 'selected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,6 +112,33 @@ export const RaffleGrid: React.FC<RaffleGridProps> = ({
           Toque no número desejado para marcar e garantir sua participação!
         </p>
       </div>
+
+      {/* Sold Out Alert / Fast Expansion Banner if 0 or few numbers available */}
+      {numberList.filter((n) => n.status === 'available').length === 0 && (
+        <div className="bg-[#fdf1eb] border-2 border-[#f0c3b4] rounded-2xl p-4 sm:p-5 mb-4 text-center shadow-xs space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#D48166] text-white rounded-full text-xs font-black uppercase tracking-wider">
+            🎉 Sucesso Total de Vendas!
+          </div>
+          <h3 className="text-base sm:text-lg font-bold text-[#2d2a26] font-serif">
+            Todas as {raffle.totalNumbers} cotas desta rifa já foram vendidas ou reservadas!
+          </h3>
+          <p className="text-xs text-[#7c736a] max-w-md mx-auto">
+            Apareceram novos compradores interessados? Você pode aumentar o número de cotas da rifa agora mesmo sem perder nenhuma venda realizada.
+          </p>
+          {onOpenExpandNumbers && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={onOpenExpandNumbers}
+                className="px-5 py-2.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all inline-flex items-center gap-2 active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-[#f0c3b4]" />
+                <span>Aumentar Cotas da Rifa Agora (+10, +25, +50...)</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Control Bar: Filters, Search, Random Pick */}
       <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-xs border border-[#eee4db] mb-4 sm:mb-6 space-y-3">

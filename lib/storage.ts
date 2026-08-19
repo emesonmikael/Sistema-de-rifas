@@ -461,12 +461,57 @@ export function createNewRaffle(
   return newRaffle;
 }
 
+export function expandRaffleNumbers(raffleId: string, additionalCount: number): { success: boolean; newTotal: number; message: string } {
+  const current = getStoredData();
+  const index = current.raffles.findIndex((r) => r.id === raffleId);
+  if (index === -1) {
+    return { success: false, newTotal: 0, message: 'Rifa não encontrada.' };
+  }
+
+  const raffle = current.raffles[index];
+  const oldTotal = raffle.totalNumbers;
+  const newTotal = oldTotal + additionalCount;
+
+  const updatedNumbers = { ...raffle.numbers };
+  for (let i = oldTotal + 1; i <= newTotal; i++) {
+    if (!updatedNumbers[i]) {
+      updatedNumbers[i] = { number: i, status: 'available' };
+    }
+  }
+
+  current.raffles[index] = {
+    ...raffle,
+    totalNumbers: newTotal,
+    numbers: updatedNumbers,
+    updatedAt: new Date().toISOString(),
+  };
+
+  saveStoredData(current);
+  return {
+    success: true,
+    newTotal,
+    message: `Rifa expandida com sucesso! Adicionadas +${additionalCount} cotas. Total agora: ${newTotal} cotas.`,
+  };
+}
+
 export function updateRaffle(raffle: Raffle): void {
   const current = getStoredData();
   const index = current.raffles.findIndex((r) => r.id === raffle.id);
   if (index !== -1) {
+    const existingRaffle = current.raffles[index];
+    const updatedNumbers = { ...existingRaffle.numbers, ...(raffle.numbers || {}) };
+
+    // Ensure all numbers from 1 to raffle.totalNumbers are present
+    for (let i = 1; i <= raffle.totalNumbers; i++) {
+      if (!updatedNumbers[i]) {
+        updatedNumbers[i] = { number: i, status: 'available' };
+      }
+    }
+
     current.raffles[index] = {
+      ...existingRaffle,
       ...raffle,
+      numbers: updatedNumbers,
       updatedAt: new Date().toISOString(),
     };
     saveStoredData(current);
