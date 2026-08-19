@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Raffle } from '@/types/raffle';
 import {
   getSheetsConfig,
   saveSheetsConfig,
   syncRaffleToGoogleSheets,
+  fetchRaffleFromGoogleSheets,
   generateGoogleAppsScriptCode,
   GoogleSheetsConfig,
 } from '@/lib/sheetsSync';
+import { DEFAULT_SHEETS_WEBHOOK_URL } from '@/lib/sheetsConfig';
 import {
   X,
   FileSpreadsheet,
@@ -16,11 +18,14 @@ import {
   Copy,
   Check,
   RefreshCw,
+  Download,
   ExternalLink,
   HelpCircle,
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  DownloadCloud,
+  UploadCloud,
 } from 'lucide-react';
 import { sounds } from '@/lib/sound';
 
@@ -39,6 +44,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
 }) => {
   const [config, setConfig] = useState<GoogleSheetsConfig>(() => getSheetsConfig());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [activeTab, setActiveTab] = useState<'config' | 'tutorial' | 'code'>('config');
   const [statusFeedback, setStatusFeedback] = useState<{
@@ -62,7 +68,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
     if (!config.webhookUrl) {
       setStatusFeedback({
         type: 'error',
-        text: 'Insira a URL do Webhook do Google Apps Script antes de sincronizar.',
+        text: 'Insira a URL do Webhook do Google Apps Script antes de enviar os dados.',
       });
       return;
     }
@@ -80,6 +86,40 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
       setStatusFeedback({
         type: 'success',
         text: `Sincronização concluída! ${result.rowsCount || raffle.totalNumbers} cotas salvas na planilha.`,
+      });
+      if (onSyncSuccess) {
+        onSyncSuccess(result.message);
+      }
+    } else {
+      setStatusFeedback({
+        type: 'error',
+        text: result.message,
+      });
+    }
+  };
+
+  const handleFetchNow = async () => {
+    if (!config.webhookUrl) {
+      setStatusFeedback({
+        type: 'error',
+        text: 'Insira a URL do Webhook do Google Apps Script para buscar os dados.',
+      });
+      return;
+    }
+
+    setIsFetching(true);
+    sounds.playPop();
+    saveSheetsConfig(config);
+
+    const result = await fetchRaffleFromGoogleSheets(raffle.id, config.webhookUrl);
+    setIsFetching(false);
+
+    if (result.success) {
+      sounds.playSuccess();
+      setConfig(getSheetsConfig());
+      setStatusFeedback({
+        type: 'success',
+        text: result.message,
       });
       if (onSyncSuccess) {
         onSyncSuccess(result.message);
@@ -112,14 +152,14 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="font-serif font-black text-base sm:text-lg text-white truncate">
-                  Integração com Google Planilhas (Sheets)
+                  Integração Bi-Direcional com Google Sheets
                 </h3>
                 <span className="hidden sm:inline-block px-2 py-0.5 bg-[#155724] text-[10px] uppercase tracking-wider font-extrabold rounded-full border border-white/20">
-                  Nuvem Gratuita
+                  Leitura & Gravação
                 </span>
               </div>
               <p className="text-xs text-white/80 truncate">
-                Salve e sincronize todos os bilhetes, compras e vendas no seu Google Drive
+                Lê os dados salvos da planilha ao carregar e envia novas reservas/pagamentos
               </p>
             </div>
           </div>
@@ -197,20 +237,25 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
               <div className="bg-[#f0f9f1] border border-[#c8e6c9] rounded-2xl p-4 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1e7e34]">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Como funciona a Planilha na Vercel:</span>
+                  <span>Sincronização Bi-Direcional (Ler e Gravar):</span>
                 </div>
                 <p className="text-xs text-[#2d2a26] leading-relaxed">
-                  Cada vez que um bilhete for reservado ou marcado como pago, o sistema pode enviar
-                  instantaneamente uma linha atualizada para sua planilha do Google Sheets. Você e sua equipe
-                  podem abrir no celular a qualquer hora!
+                  Ao abrir o site, os dados salvos na sua planilha do Google são carregados automaticamente. Ao fazer uma reserva ou marcar como pago, a planilha é atualizada em tempo real!
                 </p>
               </div>
 
               {/* Webhook Input Field */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider">
-                  URL do Webhook do Google Apps Script <span className="text-[#D48166]">*</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-[#423d38] uppercase tracking-wider">
+                    URL do Webhook do Google Apps Script <span className="text-[#D48166]">*</span>
+                  </label>
+                  {DEFAULT_SHEETS_WEBHOOK_URL && (
+                    <span className="text-[10px] text-[#1e7e34] font-bold bg-[#e8f5e9] px-2 py-0.5 rounded-md border border-[#c8e6c9]">
+                      URL Padrão no Código Ativa
+                    </span>
+                  )}
+                </div>
                 <input
                   type="url"
                   placeholder="https://script.google.com/macros/s/AKfycbx.../exec"
@@ -219,7 +264,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                   className="w-full px-3.5 py-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-xs sm:text-sm font-mono focus:bg-white focus:ring-2 focus:ring-[#1e7e34] focus:outline-none text-[#2d2a26]"
                 />
                 <span className="text-[11px] text-[#7c736a] block">
-                  Cole aqui a URL que o Google Sheets gerou em &quot;Implantar como Aplicativo da Web&quot;.
+                  Cole aqui a URL que o Google Sheets gerou em &quot;Implantar como Aplicativo da Web&quot;. Você também pode colocar direto no código em <code>lib/sheetsConfig.ts</code> ou na Vercel em <code>NEXT_PUBLIC_SHEETS_WEBHOOK_URL</code>.
                 </span>
               </div>
 
@@ -230,7 +275,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                     Sincronização Automática em Tempo Real
                   </span>
                   <span className="text-[11px] text-[#7c736a]">
-                    Envia atualizações para o Sheets a cada nova venda ou confirmação
+                    Envia atualizações para a planilha a cada nova venda ou confirmação
                   </span>
                 </div>
                 <input
@@ -243,33 +288,55 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
               </div>
 
               {/* Last Sync Info */}
-              {config.lastSyncAt && (
-                <div className="text-xs text-[#7c736a] flex items-center justify-between px-1">
-                  <span>Última sincronização com a planilha:</span>
-                  <span className="font-mono font-bold text-[#2d2a26]">
-                    {new Date(config.lastSyncAt).toLocaleString('pt-BR')}
-                  </span>
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#7c736a]">
+                {config.lastSyncAt && (
+                  <div className="p-2.5 bg-[#f8f5f0] rounded-xl border border-[#eee4db] flex justify-between items-center">
+                    <span>Último Envio (Gravação):</span>
+                    <span className="font-mono font-bold text-[#2d2a26]">
+                      {new Date(config.lastSyncAt).toLocaleTimeString('pt-BR')}
+                    </span>
+                  </div>
+                )}
+                {config.lastFetchAt && (
+                  <div className="p-2.5 bg-[#f8f5f0] rounded-xl border border-[#eee4db] flex justify-between items-center">
+                    <span>Última Leitura (Carga):</span>
+                    <span className="font-mono font-bold text-[#2d2a26]">
+                      {new Date(config.lastFetchAt).toLocaleTimeString('pt-BR')}
+                    </span>
+                  </div>
+                )}
+              </div>
 
               {/* Main Action Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+              <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button
                   type="button"
-                  onClick={handleSyncNow}
-                  disabled={isSyncing}
-                  className="flex-1 py-3.5 bg-[#1e7e34] hover:bg-[#155724] text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                  onClick={handleFetchNow}
+                  disabled={isFetching || isSyncing}
+                  className="py-3.5 bg-[#5A5A40] hover:bg-[#484832] text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span>{isSyncing ? 'Enviando para a Planilha...' : 'Sincronizar Tudo com o Sheets Agora'}</span>
+                  <DownloadCloud className={`w-4 h-4 ${isFetching ? 'animate-bounce' : ''}`} />
+                  <span>{isFetching ? 'Buscando da Planilha...' : 'Carregar Dados da Planilha Agora'}</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleSaveConfig}
-                  className="px-5 py-3.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-bold text-xs rounded-xl border border-[#eee4db] active:scale-95"
+                  onClick={handleSyncNow}
+                  disabled={isSyncing || isFetching}
+                  className="py-3.5 bg-[#1e7e34] hover:bg-[#155724] text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Salvar Configuração
+                  <UploadCloud className={`w-4 h-4 ${isSyncing ? 'animate-bounce' : ''}`} />
+                  <span>{isSyncing ? 'Enviando para a Planilha...' : 'Enviar Dados Atuais para Planilha'}</span>
+                </button>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleSaveConfig}
+                  className="px-5 py-2.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-bold text-xs rounded-xl border border-[#eee4db] active:scale-95"
+                >
+                  Salvar Preferências
                 </button>
               </div>
 
@@ -305,11 +372,11 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
               <div className="border border-[#eee4db] rounded-2xl p-4 bg-[#fdfaf7] space-y-3">
                 <div className="flex items-center gap-2 font-bold text-[#1e7e34] font-serif text-sm">
                   <span className="w-6 h-6 rounded-full bg-[#1e7e34] text-white text-xs flex items-center justify-center">2</span>
-                  <span>Abra o Apps Script e Cole o Código</span>
+                  <span>Abra o Apps Script e Cole o Código Novo</span>
                 </div>
                 <p className="text-xs text-[#7c736a] pl-8">
                   No menu superior do Google Sheets, clique em: <strong className="text-[#2d2a26]">Extensões &gt; Apps Script</strong>.
-                  Apague o que estiver lá e cole o código da aba <strong>&quot;Código Apps Script&quot;</strong>.
+                  Apague o que estiver lá e cole o código atualizado da aba <strong>&quot;Código Apps Script&quot;</strong> (que inclui suporte a leitura e gravação).
                 </p>
                 <div className="pl-8 pt-1">
                   <button
@@ -333,7 +400,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                   <li>Selecione o tipo de engrenagem ⚙️: <strong>Aplicativo da Web (Web App)</strong>.</li>
                   <li>Em <em>&quot;Quem pode acessar&quot;</em>, escolha: <strong className="text-[#2d2a26]">Qualquer pessoa (Anyone)</strong>.</li>
                   <li>Clique em <strong>Implantar</strong>, autorize o acesso com sua conta Google e copie a <strong>URL do aplicativo da Web</strong> gerada.</li>
-                  <li>Cole essa URL na aba <strong>&quot;Sincronização &amp; URL&quot;</strong> aqui do sistema de rifas.</li>
+                  <li>Cole essa URL na aba <strong>&quot;Sincronização &amp; URL&quot;</strong> aqui do sistema de rifas ou no arquivo <code>lib/sheetsConfig.ts</code>.</li>
                 </ol>
               </div>
             </div>
@@ -344,7 +411,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
             <div className="space-y-3 animate-fade-in">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-[#7c736a] font-medium">
-                  Código completo para colar no Google Apps Script:
+                  Código completo (POST para salvar + GET para carregar):
                 </span>
                 <button
                   type="button"
@@ -361,7 +428,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
               </pre>
 
               <p className="text-[11px] text-[#7c736a]">
-                💡 Esse código cria automaticamente a aba <strong>&quot;Bilhetes&quot;</strong> formatada com cores e a aba <strong>&quot;Resumo Geral&quot;</strong> com métricas em tempo real.
+                💡 Esse código agora suporta tanto <strong>doPost</strong> (gravação das cotas e relatórios) quanto <strong>doGet</strong> (busca das cotas salvas ao recarregar a página).
               </p>
             </div>
           )}

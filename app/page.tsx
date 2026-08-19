@@ -39,9 +39,13 @@ import { ExpandNumbersModal } from '@/components/ExpandNumbersModal';
 import { GoogleSheetsSyncModal } from '@/components/GoogleSheetsSyncModal';
 import { AuthModal } from '@/components/AuthModal';
 import { UserProfileModal } from '@/components/UserProfileModal';
-import { syncRaffleToGoogleSheets, getSheetsConfig } from '@/lib/sheetsSync';
+import {
+  syncRaffleToGoogleSheets,
+  fetchRaffleFromGoogleSheets,
+  getSheetsConfig,
+} from '@/lib/sheetsSync';
 import { sounds } from '@/lib/sound';
-import { CheckCircle2, ShieldAlert, Lock, ArrowRight, UserCheck } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Lock, ArrowRight, UserCheck, RefreshCw, FileSpreadsheet } from 'lucide-react';
 
 export default function Home() {
   const data = useRaffleSystemData();
@@ -77,6 +81,36 @@ export default function Home() {
     if (!data) return null;
     return getActiveRaffle(data);
   }, [data]);
+
+  // Initial Load from Google Sheets on Page Mount
+  React.useEffect(() => {
+    let isMounted = true;
+    const config = getSheetsConfig();
+    if (config.webhookUrl && activeRaffle) {
+      fetchRaffleFromGoogleSheets(activeRaffle.id)
+        .then((res) => {
+          if (!isMounted) return;
+          if (res.success && res.numbersCount && res.numbersCount > 0) {
+            showToast(`Dados da Planilha Google Sheets carregados (${res.numbersCount} cotas ativas)!`, 'info');
+          }
+        })
+        .catch((err) => console.error('Initial sheets sync error:', err));
+    }
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Helper to trigger background Google Sheets sync if autoSync is active
+  const triggerSheetsAutoSync = useCallback((raffleToSync: Raffle) => {
+    const config = getSheetsConfig();
+    if (config.autoSync && config.webhookUrl) {
+      syncRaffleToGoogleSheets(raffleToSync, 'FULL_SYNC').catch((err) =>
+        console.error('Background sheets sync error:', err)
+      );
+    }
+  }, []);
 
   const sellers = useMemo(() => {
     return data?.sellers || [];
@@ -141,6 +175,7 @@ export default function Home() {
       setSelectedNumbers([]);
       setShowCheckoutModal(false);
       showToast(res.message, 'success');
+      triggerSheetsAutoSync(activeRaffle);
     } else {
       alert(res.message);
     }
@@ -152,6 +187,7 @@ export default function Home() {
     const ok = confirmNumberPayment(activeRaffle.id, number);
     if (ok) {
       showToast(`Pagamento da cota ${number.toString().padStart(2, '0')} confirmado!`, 'success');
+      triggerSheetsAutoSync(activeRaffle);
     }
   };
 
@@ -161,6 +197,7 @@ export default function Home() {
     const ok = confirmBulkPayments(activeRaffle.id, numbers);
     if (ok) {
       showToast(`${numbers.length} pagamentos confirmados com sucesso!`, 'success');
+      triggerSheetsAutoSync(activeRaffle);
     }
   };
 
@@ -170,6 +207,7 @@ export default function Home() {
     const ok = releaseNumber(activeRaffle.id, number);
     if (ok) {
       showToast(`Cota ${number.toString().padStart(2, '0')} liberada para venda.`, 'info');
+      triggerSheetsAutoSync(activeRaffle);
     }
   };
 
@@ -179,6 +217,7 @@ export default function Home() {
     const count = releaseAllExpiredReservations(activeRaffle.id);
     if (count > 0) {
       showToast(`${count} reservas expiradas foram liberadas!`, 'info');
+      triggerSheetsAutoSync(activeRaffle);
     } else {
       showToast('Nenhuma reserva expirada encontrada no momento.', 'info');
     }
@@ -195,7 +234,7 @@ export default function Home() {
     isPaid: boolean;
   }) => {
     if (!activeRaffle) return;
-    reserveNumbersInRaffle({
+    const res = reserveNumbersInRaffle({
       raffleId: activeRaffle.id,
       numbers: payload.numbers,
       buyerName: payload.buyerName,
@@ -205,6 +244,12 @@ export default function Home() {
       paymentMethod: payload.paymentMethod,
       isImmediatePaid: payload.isPaid,
     });
+    if (res.success) {
+      showToast(res.message, 'success');
+      triggerSheetsAutoSync(activeRaffle);
+    } else {
+      alert(res.message);
+    }
   };
 
   // Seller management
