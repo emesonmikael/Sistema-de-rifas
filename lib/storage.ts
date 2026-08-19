@@ -297,6 +297,8 @@ export function addOrUpdateSeller(seller: Partial<Seller> & { name: string; phon
       targetSeller = {
         ...current.sellers[index],
         ...seller,
+        pin: seller.pin !== undefined ? seller.pin : (current.sellers[index].pin || '1234'),
+        role: seller.role || current.sellers[index].role || 'seller',
       };
       current.sellers[index] = targetSeller;
     } else {
@@ -306,7 +308,9 @@ export function addOrUpdateSeller(seller: Partial<Seller> & { name: string; phon
         phone: seller.phone,
         email: seller.email,
         pixKey: seller.pixKey,
+        pin: seller.pin || '1234',
         role: seller.role || 'seller',
+        targetNumbers: seller.targetNumbers || 20,
         commissionPercent: seller.commissionPercent || 0,
         createdAt: new Date().toISOString(),
       };
@@ -319,7 +323,9 @@ export function addOrUpdateSeller(seller: Partial<Seller> & { name: string; phon
       phone: seller.phone,
       email: seller.email,
       pixKey: seller.pixKey,
+      pin: seller.pin || '1234',
       role: seller.role || 'seller',
+      targetNumbers: seller.targetNumbers || 20,
       commissionPercent: seller.commissionPercent || 0,
       createdAt: new Date().toISOString(),
     };
@@ -330,12 +336,32 @@ export function addOrUpdateSeller(seller: Partial<Seller> & { name: string; phon
   return targetSeller;
 }
 
+export function updateSellerPin(sellerId: string, newPin: string): boolean {
+  const current = getStoredData();
+  const seller = current.sellers.find((s) => s.id === sellerId);
+  if (!seller) return false;
+
+  seller.pin = newPin.trim();
+  saveStoredData(current);
+  return true;
+}
+
+export function recordSellerLogin(sellerId: string): void {
+  const current = getStoredData();
+  const seller = current.sellers.find((s) => s.id === sellerId);
+  if (seller) {
+    seller.lastLoginAt = new Date().toISOString();
+    current.currentSellerId = sellerId;
+    saveStoredData(current);
+  }
+}
+
 export function deleteSeller(sellerId: string): boolean {
   const current = getStoredData();
   const initialLen = current.sellers.length;
   current.sellers = current.sellers.filter((s) => s.id !== sellerId);
-  if (current.currentSellerId === sellerId && current.sellers.length > 0) {
-    current.currentSellerId = current.sellers[0].id;
+  if (current.currentSellerId === sellerId) {
+    current.currentSellerId = current.sellers[0]?.id;
   }
   saveStoredData(current);
   return current.sellers.length < initialLen;

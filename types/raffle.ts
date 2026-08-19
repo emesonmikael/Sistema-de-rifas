@@ -19,12 +19,22 @@ export interface Seller {
   phone: string;
   email?: string;
   pixKey?: string;
+  pin?: string; // 4-6 digit numeric PIN for fast login
+  password?: string;
   role: 'admin' | 'seller';
   targetNumbers?: number;
   avatarColor?: string;
   active?: boolean;
   commissionPercent?: number;
+  lastLoginAt?: string;
   createdAt: string;
+}
+
+export interface AuthSession {
+  currentUser: Seller | null;
+  role: 'admin' | 'seller' | 'guest';
+  isAuthenticated: boolean;
+  loginTime?: string;
 }
 
 export interface RaffleNumber {

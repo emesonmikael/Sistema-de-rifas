@@ -1,15 +1,29 @@
 'use client';
 
 import React from 'react';
-import { Grid, DollarSign, FileText, Gift, UserCheck, Plus, RotateCcw, Award } from 'lucide-react';
+import {
+  Grid,
+  DollarSign,
+  FileText,
+  Gift,
+  UserCheck,
+  Plus,
+  RotateCcw,
+  Award,
+  Lock,
+  User,
+  ShieldCheck,
+  LogIn,
+} from 'lucide-react';
 import { Seller } from '@/types/raffle';
 
 interface NavbarProps {
   activeTab: 'grid' | 'seller' | 'finance' | 'reports' | 'draw';
   setActiveTab: (tab: 'grid' | 'seller' | 'finance' | 'reports' | 'draw') => void;
   sellers: Seller[];
-  currentSellerId?: string;
-  onSelectSeller: (sellerId: string) => void;
+  currentUser: Seller | null;
+  onOpenAuthModal: () => void;
+  onOpenProfileModal: () => void;
   onOpenNewRaffle: () => void;
   onOpenSellerManager: () => void;
   onResetDemo: () => void;
@@ -20,13 +34,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   sellers,
-  currentSellerId,
-  onSelectSeller,
+  currentUser,
+  onOpenAuthModal,
+  onOpenProfileModal,
   onOpenNewRaffle,
   onOpenSellerManager,
   onResetDemo,
   activeRaffleTitle,
 }) => {
+  const isAdmin = currentUser?.role === 'admin';
+
   return (
     <>
       {/* Top Header Bar */}
@@ -44,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Paroquial
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-[#7c736a] truncate max-w-[130px] sm:max-w-[280px]">
+              <p className="text-[11px] sm:text-xs text-[#7c736a] truncate max-w-[120px] sm:max-w-[240px]">
                 {activeRaffleTitle}
               </p>
             </div>
@@ -55,7 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('grid')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'grid'
                   ? 'bg-[#5A5A40] text-white shadow-xs'
                   : 'text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#ede6df]'
@@ -68,7 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('seller')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'seller'
                   ? 'bg-[#5A5A40] text-white shadow-xs'
                   : 'text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#ede6df]'
@@ -81,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('finance')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'finance'
                   ? 'bg-[#5A5A40] text-white shadow-xs'
                   : 'text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#ede6df]'
@@ -89,12 +106,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <DollarSign className="w-4 h-4" />
               <span>Controle Financeiro</span>
+              {!isAdmin && (
+                <span className="text-[9px] bg-[#eee4db] text-[#7c736a] px-1.5 py-0.2 rounded font-bold">
+                  Admin
+                </span>
+              )}
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('reports')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'reports'
                   ? 'bg-[#5A5A40] text-white shadow-xs'
                   : 'text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#ede6df]'
@@ -107,7 +129,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('draw')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'draw'
                   ? 'bg-[#D48166] text-white font-bold shadow-xs'
                   : 'text-[#D48166] hover:bg-[#fdf1eb]'
@@ -118,43 +140,81 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Zone 3: Actions & Seller Selector */}
+          {/* Zone 3: User Auth / Profile Badge & Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Active Seller Switcher */}
-            <div className="hidden sm:flex items-center gap-1.5 bg-[#f8f5f0] px-2 py-1 rounded-lg border border-[#eee4db] text-xs">
-              <span className="text-[#7c736a] hidden lg:inline">Vendedor:</span>
-              <select
-                value={currentSellerId || ''}
-                onChange={(e) => onSelectSeller(e.target.value)}
-                className="bg-transparent text-[#2d2a26] font-medium focus:outline-none cursor-pointer text-xs"
+            {/* Authenticated User Button / Login Trigger */}
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={onOpenProfileModal}
+                className="flex items-center gap-2 px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] rounded-xl border border-[#eee4db] text-xs transition-all active:scale-95"
+                title="Abrir Meu Perfil / Trocar PIN"
               >
-                {sellers.map((s) => (
-                  <option key={s.id} value={s.id} className="bg-white text-[#2d2a26]">
-                    {s.name} {s.role === 'admin' ? '⭐' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div
+                  className={`w-6 h-6 rounded-lg text-white font-bold text-[10px] flex items-center justify-center shrink-0 ${
+                    isAdmin ? 'bg-[#5A5A40]' : 'bg-[#D48166]'
+                  }`}
+                >
+                  {currentUser.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="text-left hidden sm:block max-w-[110px] truncate">
+                  <span className="font-bold text-[#2d2a26] block truncate leading-tight">
+                    {currentUser.name.split(' ')[0]}
+                  </span>
+                  <span
+                    className={`text-[9px] font-extrabold uppercase ${
+                      isAdmin ? 'text-[#5A5A40]' : 'text-[#D48166]'
+                    }`}
+                  >
+                    {isAdmin ? '👑 Coordenação' : '🤝 Vendedor'}
+                  </span>
+                </div>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenAuthModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484832] text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Entrar (Vendedor/ADM)</span>
+              </button>
+            )}
 
+            {/* Team Manager Button (Always available for admin or fast switch) */}
             <button
               type="button"
               onClick={onOpenSellerManager}
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] rounded-lg text-xs font-semibold border border-[#eee4db] transition-colors active:scale-95"
+              className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] rounded-lg text-xs font-semibold border border-[#eee4db] transition-colors active:scale-95"
               title="Gerenciar equipe de vendedores"
             >
               <UserCheck className="w-3.5 h-3.5" />
               <span>Equipe</span>
             </button>
 
+            {/* New Raffle button for admins */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={onOpenNewRaffle}
+                className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 bg-[#D48166] hover:bg-[#c27055] text-white rounded-lg text-xs font-bold transition-all shadow-xs active:scale-95 shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Nova Rifa</span>
+              </button>
+            )}
+
+            {/* Fast Switch User Icon */}
             <button
               type="button"
-              onClick={onOpenNewRaffle}
-              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-[#D48166] hover:bg-[#c27055] text-white rounded-lg text-xs font-bold transition-all shadow-xs active:scale-95 shrink-0"
+              onClick={onOpenAuthModal}
+              className="p-1.5 text-[#7c736a] hover:text-[#5A5A40] hover:bg-[#f8f5f0] rounded-lg transition-colors active:scale-95 shrink-0"
+              title="Alternar login de Vendedor ou Administrador"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span>Nova Rifa</span>
+              <Lock className="w-4 h-4" />
             </button>
 
+            {/* Reset Demo button */}
             <button
               type="button"
               onClick={onResetDemo}

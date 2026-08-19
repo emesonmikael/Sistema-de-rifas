@@ -143,7 +143,7 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
 
     const link = generateWhatsAppLink({ phone: item.buyerPhone, message: msg });
     if (typeof window !== 'undefined') {
-      window.location.href = link;
+      window.location.assign(link);
     }
   };
 
@@ -160,7 +160,7 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
 
     const link = generateWhatsAppLink({ phone: item.buyerPhone, message: msg });
     if (typeof window !== 'undefined') {
-      window.location.href = link;
+      window.location.assign(link);
     }
   };
 

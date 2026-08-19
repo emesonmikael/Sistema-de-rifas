@@ -25,6 +25,7 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [pixKey, setPixKey] = useState('');
+  const [pin, setPin] = useState('1234');
   const [role, setRole] = useState<'seller' | 'admin'>('seller');
   const [targetNumbers, setTargetNumbers] = useState(20);
 
@@ -34,6 +35,7 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
     setPhone(seller.phone);
     setEmail(seller.email || '');
     setPixKey(seller.pixKey || '');
+    setPin(seller.pin || '1234');
     setRole(seller.role);
     setTargetNumbers(seller.targetNumbers || 20);
     setIsAdding(true);
@@ -45,6 +47,7 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
     setPhone('');
     setEmail('');
     setPixKey('');
+    setPin('1234');
     setRole('seller');
     setTargetNumbers(20);
     setIsAdding(false);
@@ -60,6 +63,7 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
       phone: phone.trim(),
       email: email.trim() || undefined,
       pixKey: pixKey.trim() || undefined,
+      pin: pin.trim() || '1234',
       role,
       targetNumbers: Number(targetNumbers) || 20,
     });
@@ -159,6 +163,23 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-[#423d38] mb-1">
+                    PIN de Acesso (4 dígitos) <span className="text-[#D48166]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    maxLength={6}
+                    placeholder="Ex: 1234"
+                    className="w-full px-3 py-2.5 bg-white border border-[#eee4db] rounded-xl text-sm font-mono font-bold text-[#5A5A40] focus:ring-2 focus:ring-[#5A5A40] focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#423d38] mb-1">
                     Chave PIX do Vendedor (Opcional)
                   </label>
                   <input
@@ -166,6 +187,19 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
                     value={pixKey}
                     onChange={(e) => setPixKey(e.target.value)}
                     placeholder="Chave pessoal"
+                    className="w-full px-3 py-2.5 bg-white border border-[#eee4db] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#5A5A40] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#423d38] mb-1">
+                    E-mail do Vendedor (Opcional)
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@exemplo.com"
                     className="w-full px-3 py-2.5 bg-white border border-[#eee4db] rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#5A5A40] focus:outline-none"
                   />
                 </div>
@@ -226,9 +260,12 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
                         {s.role === 'admin' ? 'Coordenador' : 'Vendedor'}
                       </span>
                     </div>
-                    <div className="text-xs text-[#7c736a] flex items-center gap-3 mt-0.5">
+                    <div className="text-xs text-[#7c736a] flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
                       <span>📱 {s.phone}</span>
                       <span>🎯 Meta: {s.targetNumbers || 20} cotas</span>
+                      <span className="font-mono text-[11px] bg-white px-1.5 py-0.2 rounded border border-[#eee4db] text-[#5A5A40]">
+                        PIN: {s.pin || '1234'}
+                      </span>
                     </div>
                   </div>
                 </div>

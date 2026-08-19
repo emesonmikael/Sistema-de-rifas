@@ -12,6 +12,8 @@ import {
   releaseAllExpiredReservations,
   addOrUpdateSeller,
   deleteSeller,
+  updateSellerPin,
+  recordSellerLogin,
   recordWinner,
   addExpense,
   deleteExpense,
@@ -32,13 +34,20 @@ import { DigitalReceiptModal } from '@/components/DigitalReceiptModal';
 import { SellerManagerModal } from '@/components/SellerManagerModal';
 import { RaffleSettingsModal } from '@/components/RaffleSettingsModal';
 import { RaffleDetailsModal } from '@/components/RaffleDetailsModal';
+import { AuthModal } from '@/components/AuthModal';
+import { UserProfileModal } from '@/components/UserProfileModal';
 import { sounds } from '@/lib/sound';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Lock, ArrowRight, UserCheck } from 'lucide-react';
 
 export default function Home() {
   const data = useRaffleSystemData();
   const [activeTab, setActiveTab] = useState<'grid' | 'seller' | 'finance' | 'reports' | 'draw'>('grid');
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
+
+  // Auth & Session State
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(false);
 
   // Modals state
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -67,7 +76,14 @@ export default function Home() {
     return data?.sellers || [];
   }, [data]);
 
-  const currentSellerId = data?.currentSellerId || sellers[0]?.id;
+  // Current logged user
+  const currentUser = useMemo(() => {
+    if (isGuestMode) return null;
+    const found = sellers.find((s) => s.id === data?.currentSellerId);
+    return found || sellers[0] || null;
+  }, [sellers, data?.currentSellerId, isGuestMode]);
+
+  const isAdmin = currentUser?.role === 'admin';
 
   // Numbers stats
   const { totalSold, totalReserved, totalAvailable } = useMemo(() => {
@@ -198,6 +214,28 @@ export default function Home() {
     saveStoredData(updated);
   };
 
+  // Auth handlers
+  const handleLoginSuccess = (seller: Seller) => {
+    setIsGuestMode(false);
+    recordSellerLogin(seller.id);
+    handleSelectSeller(seller.id);
+    showToast(
+      `Conectado como ${seller.name} (${seller.role === 'admin' ? 'Coordenador / ADM' : 'Vendedor'})`,
+      'success'
+    );
+  };
+
+  const handleLogout = () => {
+    setIsGuestMode(true);
+    showToast('Sessão encerrada. Modo visitante ativado.', 'info');
+  };
+
+  const handleUpdatePin = (newPin: string) => {
+    if (!currentUser) return;
+    updateSellerPin(currentUser.id, newPin);
+    showToast('PIN de acesso atualizado com sucesso!', 'success');
+  };
+
   // Expenses
   const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
     if (!activeRaffle) return;
@@ -264,10 +302,23 @@ export default function Home() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         sellers={sellers}
-        currentSellerId={currentSellerId}
-        onSelectSeller={handleSelectSeller}
-        onOpenNewRaffle={() => setShowNewRaffleModal(true)}
-        onOpenSellerManager={() => setShowSellerModal(true)}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenProfileModal={() => setShowProfileModal(true)}
+        onOpenNewRaffle={() => {
+          if (!isAdmin) {
+            setShowAuthModal(true);
+            return;
+          }
+          setShowNewRaffleModal(true);
+        }}
+        onOpenSellerManager={() => {
+          if (!isAdmin) {
+            setShowAuthModal(true);
+            return;
+          }
+          setShowSellerModal(true);
+        }}
         onResetDemo={handleResetDemo}
         activeRaffleTitle={activeRaffle.title}
       />
@@ -285,8 +336,20 @@ export default function Home() {
               totalAvailable={totalAvailable}
               onOpenCheckout={() => setShowCheckoutModal(true)}
               onOpenDetails={() => setShowDetailsModal(true)}
-              onOpenEditRaffle={() => setShowEditRaffleModal(true)}
-              onOpenNewRaffle={() => setShowNewRaffleModal(true)}
+              onOpenEditRaffle={() => {
+                if (!isAdmin) {
+                  setShowAuthModal(true);
+                  return;
+                }
+                setShowEditRaffleModal(true);
+              }}
+              onOpenNewRaffle={() => {
+                if (!isAdmin) {
+                  setShowAuthModal(true);
+                  return;
+                }
+                setShowNewRaffleModal(true);
+              }}
             />
 
             {/* The Interactive Visual Number Grid */}
@@ -308,7 +371,7 @@ export default function Home() {
             <SellerDesk
               raffle={activeRaffle}
               sellers={sellers}
-              currentSellerId={currentSellerId}
+              currentSellerId={currentUser?.id || sellers[0]?.id}
               onSelectSeller={handleSelectSeller}
               onConfirmPayment={handleConfirmPayment}
               onReleaseNumber={handleReleaseNumber}
@@ -321,16 +384,48 @@ export default function Home() {
         {/* Tab 3: Controle Financeiro Total & Auditoria de Pagamentos */}
         {activeTab === 'finance' && (
           <div className="animate-fade-in">
-            <FinancialDashboard
-              raffle={activeRaffle}
-              sellers={sellers}
-              onConfirmPayment={handleConfirmPayment}
-              onBulkConfirmPayments={handleBulkConfirmPayments}
-              onReleaseNumber={handleReleaseNumber}
-              onReleaseExpired={handleReleaseExpired}
-              onAddExpense={handleAddExpense}
-              onDeleteExpense={handleDeleteExpense}
-            />
+            {!isAdmin ? (
+              /* Informative Access Gate if non-admin attempts to access financial ledger */
+              <div className="w-full max-w-xl mx-auto px-4 py-12 text-center">
+                <div className="bg-white p-6 sm:p-8 rounded-3xl border-2 border-[#eee4db] shadow-lg space-y-4 text-[#2d2a26]">
+                  <div className="w-14 h-14 rounded-2xl bg-[#fdf1eb] border border-[#f0c3b4] text-[#D48166] flex items-center justify-center mx-auto">
+                    <ShieldAlert className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-xl font-bold font-serif">Área Restrita à Coordenação (ADM)</h3>
+                  <p className="text-xs sm:text-sm text-[#7c736a] leading-relaxed">
+                    O Controle Financeiro Geral, lançamento de despesas e aprovações em lote requerem login de <strong>Coordenador / Administrador</strong>.
+                  </p>
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAuthModal(true)}
+                      className="px-6 py-3 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>Fazer Login como Administrador</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('seller')}
+                      className="px-4 py-3 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-bold text-xs rounded-xl border border-[#eee4db] active:scale-95"
+                    >
+                      Ir para meu Balcão de Vendedor
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <FinancialDashboard
+                raffle={activeRaffle}
+                sellers={sellers}
+                onConfirmPayment={handleConfirmPayment}
+                onBulkConfirmPayments={handleBulkConfirmPayments}
+                onReleaseNumber={handleReleaseNumber}
+                onReleaseExpired={handleReleaseExpired}
+                onAddExpense={handleAddExpense}
+                onDeleteExpense={handleDeleteExpense}
+              />
+            )}
           </div>
         )}
 
@@ -340,7 +435,13 @@ export default function Home() {
             <ReportsView
               raffle={activeRaffle}
               sellers={sellers}
-              onOpenEditRaffle={() => setShowEditRaffleModal(true)}
+              onOpenEditRaffle={() => {
+                if (!isAdmin) {
+                  setShowAuthModal(true);
+                  return;
+                }
+                setShowEditRaffleModal(true);
+              }}
             />
           </div>
         )}
@@ -367,13 +468,37 @@ export default function Home() {
         </div>
       )}
 
+      {/* Auth / Login Modal for Sellers & Admins */}
+      {showAuthModal && (
+        <AuthModal
+          sellers={sellers}
+          currentUser={currentUser}
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onLoginSuccess={handleLoginSuccess}
+          onEnterGuestMode={handleLogout}
+        />
+      )}
+
+      {/* User Profile & Change PIN Modal */}
+      {showProfileModal && currentUser && (
+        <UserProfileModal
+          currentUser={currentUser}
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          onUpdatePin={handleUpdatePin}
+          onLogout={handleLogout}
+          onSwitchUser={() => setShowAuthModal(true)}
+        />
+      )}
+
       {/* Buyer Checkout Modal */}
       {showCheckoutModal && (
         <BuyerCheckoutModal
           raffle={activeRaffle}
           selectedNumbers={selectedNumbers}
           sellers={sellers}
-          defaultSellerId={currentSellerId}
+          defaultSellerId={currentUser?.id || sellers[0]?.id}
           onClose={() => setShowCheckoutModal(false)}
           onConfirm={handleCheckoutConfirm}
         />
@@ -388,7 +513,7 @@ export default function Home() {
         />
       )}
 
-      {/* Seller Manager Modal */}
+      {/* Seller Manager Modal (Equipe) */}
       {showSellerModal && (
         <SellerManagerModal
           sellers={sellers}
@@ -423,6 +548,10 @@ export default function Home() {
           raffle={activeRaffle}
           onClose={() => setShowDetailsModal(false)}
           onOpenEdit={() => {
+            if (!isAdmin) {
+              setShowAuthModal(true);
+              return;
+            }
             setShowDetailsModal(false);
             setShowEditRaffleModal(true);
           }}
@@ -437,7 +566,7 @@ export default function Home() {
           <span className="text-[#D48166] font-bold">{activeRaffle.title}</span>
         </div>
         <p className="text-[11px] text-[#a89d91]">
-          Sistema de Rifas, Balcão de Vendedores e Controle Financeiro Automatizado
+          Sistema de Rifas Beneficentes com Autenticação de Vendedores e Administração Integrada
         </p>
       </footer>
     </div>
