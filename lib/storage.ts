@@ -518,6 +518,29 @@ export function updateRaffle(raffle: Raffle): void {
   }
 }
 
+export function setActiveRaffleId(raffleId: string): void {
+  const current = getStoredData();
+  const exists = current.raffles.some((r) => r.id === raffleId);
+  if (exists) {
+    current.activeRaffleId = raffleId;
+    saveStoredData(current);
+  }
+}
+
+export function deleteRaffle(raffleId: string): boolean {
+  const current = getStoredData();
+  if (current.raffles.length <= 1) {
+    return false; // Prevent deleting the only remaining raffle
+  }
+  const initialLen = current.raffles.length;
+  current.raffles = current.raffles.filter((r) => r.id !== raffleId);
+  if (current.activeRaffleId === raffleId) {
+    current.activeRaffleId = current.raffles[0].id;
+  }
+  saveStoredData(current);
+  return current.raffles.length < initialLen;
+}
+
 export function resetToInitialDemoData(): void {
   memoryCache = INITIAL_SYSTEM_DATA;
   if (typeof window !== 'undefined') {

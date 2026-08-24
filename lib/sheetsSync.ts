@@ -1,6 +1,6 @@
 import { Raffle, SystemData, RaffleNumber } from '@/types/raffle';
 import { DEFAULT_SHEETS_WEBHOOK_URL } from './sheetsConfig';
-import { saveStoredData, getStoredData } from './storage';
+import { saveStoredData, getStoredData, createNewRaffle, setActiveRaffleId } from './storage';
 
 export interface GoogleSheetsConfig {
   webhookUrl: string; // The Google Apps Script Web App URL
@@ -17,6 +17,18 @@ export function getSheetsConfig(): GoogleSheetsConfig {
     return { webhookUrl: DEFAULT_SHEETS_WEBHOOK_URL, autoSync: true };
   }
   try {
+    // Check if URL search params provide a webhook (e.g. ?webhook=... or ?sheet=...)
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramUrl = urlParams.get('webhook') || urlParams.get('sheet');
+    if (paramUrl && paramUrl.startsWith('http')) {
+      const config: GoogleSheetsConfig = {
+        webhookUrl: paramUrl,
+        autoSync: true,
+      };
+      saveSheetsConfig(config);
+      return config;
+    }
+
     const raw = localStorage.getItem(SHEETS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -87,7 +99,6 @@ export async function fetchRaffleFromGoogleSheets(
     try {
       result = JSON.parse(rawText);
     } catch (parseErr) {
-      // If the Webhook returned plain text (e.g. older script deployment)
       if (rawText.includes('Webhook de') || rawText.includes('HTML')) {
         return {
           success: false,
@@ -101,67 +112,186 @@ export async function fetchRaffleFromGoogleSheets(
       };
     }
 
-    if (!result || result.result !== 'success' || !result.cotas) {
+    if (!result || result.result !== 'success') {
       return {
         success: false,
-        message: result?.error || 'A planilha não retornou cotas válidas.',
+        message: result?.error || 'A planilha não retornou dados válidos.',
       };
     }
 
-    // Apply fetched cotas to local storage
     const current = getStoredData();
-    const activeRaffleId = raffleId || current.activeRaffleId;
-    const raffleIndex = current.raffles.findIndex((r) => r.id === activeRaffleId);
+    let totalImportedActiveNumbers = 0;
 
-    if (raffleIndex === -1) {
-      return {
-        success: false,
-        message: 'Rifa correspondente não foi encontrada no sistema.',
-      };
-    }
+    // 1. Process multiple raffles if returned by Apps Script
+    if (result.raffles && Array.isArray(result.raffles) && result.raffles.length > 0) {
+      for (const rData of result.raffles) {
+        const raffleTitle = rData.title || (result.meta && result.meta.titulo) || 'Rifa Paroquial';
+        const cotasArray = rData.cotas || [];
 
-    const currentRaffle = current.raffles[raffleIndex];
-    const updatedNumbers = { ...currentRaffle.numbers };
-    let importedCount = 0;
+        // Find existing raffle by title or match active
+        let targetIndex = current.raffles.findIndex(
+          (r) => r.title.toLowerCase().trim() === raffleTitle.toLowerCase().trim()
+        );
 
-    for (const c of result.cotas) {
-      const numInt = parseInt(c.numero, 10);
-      if (isNaN(numInt)) continue;
+        if (targetIndex === -1 && current.raffles.length === 1 && current.raffles[0].id === 'demo-raffle-01') {
+          // If only demo raffle exists, adapt the demo raffle to the real one
+          targetIndex = 0;
+        }
 
-      const rawStatus = (c.status || '').toUpperCase().trim();
-      const status: RaffleNumber['status'] =
-        rawStatus === 'PAGO' ? 'paid' : rawStatus === 'RESERVADO' ? 'reserved' : 'available';
+        let maxNum = 50;
+        cotasArray.forEach((c: any) => {
+          const n = parseInt(c.numero, 10);
+          if (!isNaN(n) && n > maxNum) maxNum = n;
+        });
 
-      const existing = updatedNumbers[numInt] || { number: numInt, status: 'available' };
+        if (targetIndex === -1) {
+          // Create new raffle entry
+          const newRaffleId = `raffle-sheet-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+          const initialNumbers: Record<number, RaffleNumber> = {};
+          for (let i = 1; i <= Math.max(maxNum, 50); i++) {
+            initialNumbers[i] = { number: i, status: 'available' };
+          }
+          const createdRaffle: Raffle = {
+            id: newRaffleId,
+            title: raffleTitle,
+            category: 'Ação Solidária',
+            causeDescription: 'Em prol da paróquia e comunidade',
+            chapelOrOrgName: (result.meta && result.meta.entidade) || 'Capela de São José Operário',
+            location: 'Comunidade Paroquial',
+            pricePerNumber: (result.meta && result.meta.precoPorNumero) || 10,
+            totalNumbers: Math.max(maxNum, 50),
+            pixKey: (result.meta && result.meta.chavePix) || 'paroquia.rifa@gmail.com',
+            pixKeyType: 'email',
+            pixReceiverName: (result.meta && result.meta.entidade) || 'Coordenação da Rifa',
+            pixCity: 'Comunidade',
+            status: 'active',
+            numbers: initialNumbers,
+            winners: [],
+            expenses: [],
+            reservationTimeoutHours: 24,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            prizes: [
+              {
+                order: 1,
+                title: '1º PRÊMIO',
+                description: 'Prêmio Principal',
+                estimatedValue: 500,
+                donorName: 'Doação Paroquial',
+                details: 'Prêmio oficial',
+              },
+            ],
+          };
+          current.raffles.push(createdRaffle);
+          targetIndex = current.raffles.length - 1;
+        }
 
-      updatedNumbers[numInt] = {
-        ...existing,
-        number: numInt,
-        status: status,
-        buyerName: c.nomeComprador || existing.buyerName || (status !== 'available' ? 'Comprador' : undefined),
-        buyerPhone: c.telefone || existing.buyerPhone,
-        buyerEmail: c.email || existing.buyerEmail,
-        sellerName: c.vendedor || existing.sellerName,
-        paymentMethod: (c.formaPagamento as any) || existing.paymentMethod || 'PIX',
-        receiptId: c.reciboId || existing.receiptId,
-        notes: c.observacoes || existing.notes,
-        paidAt: status === 'paid' ? (c.dataPagamento || existing.paidAt || new Date().toISOString()) : undefined,
-        reservedAt: status !== 'available' ? (c.dataReserva || existing.reservedAt || new Date().toISOString()) : undefined,
-        amountPaid: status === 'paid' ? Number(c.valor || currentRaffle.pricePerNumber) : undefined,
-      };
+        const targetRaffle = current.raffles[targetIndex];
+        const updatedNumbers = { ...targetRaffle.numbers };
 
-      if (status !== 'available') {
-        importedCount++;
+        // Update raffle meta if available
+        if (result.meta) {
+          if (result.meta.titulo) targetRaffle.title = result.meta.titulo;
+          if (result.meta.entidade) targetRaffle.chapelOrOrgName = result.meta.entidade;
+          if (result.meta.precoPorNumero) targetRaffle.pricePerNumber = Number(result.meta.precoPorNumero);
+          if (result.meta.chavePix) targetRaffle.pixKey = result.meta.chavePix;
+          if (result.meta.totalNumeros && result.meta.totalNumeros > targetRaffle.totalNumbers) {
+            targetRaffle.totalNumbers = Number(result.meta.totalNumeros);
+          }
+        }
+
+        // Ensure totalNumbers covers highest number
+        if (maxNum > targetRaffle.totalNumbers) {
+          targetRaffle.totalNumbers = maxNum;
+        }
+
+        for (let i = 1; i <= targetRaffle.totalNumbers; i++) {
+          if (!updatedNumbers[i]) {
+            updatedNumbers[i] = { number: i, status: 'available' };
+          }
+        }
+
+        // Apply cotas
+        for (const c of cotasArray) {
+          const numInt = parseInt(c.numero, 10);
+          if (isNaN(numInt)) continue;
+
+          const rawStatus = (c.status || '').toUpperCase().trim();
+          const status: RaffleNumber['status'] =
+            rawStatus === 'PAGO' ? 'paid' : rawStatus === 'RESERVADO' ? 'reserved' : 'available';
+
+          const existing = updatedNumbers[numInt] || { number: numInt, status: 'available' };
+
+          updatedNumbers[numInt] = {
+            ...existing,
+            number: numInt,
+            status: status,
+            buyerName: c.nomeComprador || existing.buyerName || (status !== 'available' ? 'Comprador' : undefined),
+            buyerPhone: c.telefone || existing.buyerPhone,
+            buyerEmail: c.email || existing.buyerEmail,
+            sellerName: c.vendedor || existing.sellerName,
+            paymentMethod: (c.formaPagamento as any) || existing.paymentMethod || 'PIX',
+            receiptId: c.reciboId || existing.receiptId,
+            notes: c.observacoes || existing.notes,
+            paidAt: status === 'paid' ? (c.dataPagamento || existing.paidAt || new Date().toISOString()) : undefined,
+            reservedAt: status !== 'available' ? (c.dataReserva || existing.reservedAt || new Date().toISOString()) : undefined,
+            amountPaid: status === 'paid' ? Number(c.valor || targetRaffle.pricePerNumber) : undefined,
+          };
+
+          if (status !== 'available') {
+            totalImportedActiveNumbers++;
+          }
+        }
+
+        targetRaffle.numbers = updatedNumbers;
+        targetRaffle.updatedAt = new Date().toISOString();
+        current.raffles[targetIndex] = targetRaffle;
       }
+    } else if (result.cotas && Array.isArray(result.cotas)) {
+      // Single cotas array fallback
+      const activeRaffleId = raffleId || current.activeRaffleId;
+      let raffleIndex = current.raffles.findIndex((r) => r.id === activeRaffleId);
+      if (raffleIndex === -1) raffleIndex = 0;
+
+      const currentRaffle = current.raffles[raffleIndex];
+      const updatedNumbers = { ...currentRaffle.numbers };
+
+      for (const c of result.cotas) {
+        const numInt = parseInt(c.numero, 10);
+        if (isNaN(numInt)) continue;
+
+        const rawStatus = (c.status || '').toUpperCase().trim();
+        const status: RaffleNumber['status'] =
+          rawStatus === 'PAGO' ? 'paid' : rawStatus === 'RESERVADO' ? 'reserved' : 'available';
+
+        const existing = updatedNumbers[numInt] || { number: numInt, status: 'available' };
+
+        updatedNumbers[numInt] = {
+          ...existing,
+          number: numInt,
+          status: status,
+          buyerName: c.nomeComprador || existing.buyerName || (status !== 'available' ? 'Comprador' : undefined),
+          buyerPhone: c.telefone || existing.buyerPhone,
+          buyerEmail: c.email || existing.buyerEmail,
+          sellerName: c.vendedor || existing.sellerName,
+          paymentMethod: (c.formaPagamento as any) || existing.paymentMethod || 'PIX',
+          receiptId: c.reciboId || existing.receiptId,
+          notes: c.observacoes || existing.notes,
+          paidAt: status === 'paid' ? (c.dataPagamento || existing.paidAt || new Date().toISOString()) : undefined,
+          reservedAt: status !== 'available' ? (c.dataReserva || existing.reservedAt || new Date().toISOString()) : undefined,
+          amountPaid: status === 'paid' ? Number(c.valor || currentRaffle.pricePerNumber) : undefined,
+        };
+
+        if (status !== 'available') {
+          totalImportedActiveNumbers++;
+        }
+      }
+
+      currentRaffle.numbers = updatedNumbers;
+      currentRaffle.updatedAt = new Date().toISOString();
+      current.raffles[raffleIndex] = currentRaffle;
     }
 
-    const updatedRaffle: Raffle = {
-      ...currentRaffle,
-      numbers: updatedNumbers,
-      updatedAt: new Date().toISOString(),
-    };
-
-    current.raffles[raffleIndex] = updatedRaffle;
     saveStoredData(current);
 
     config.lastFetchAt = new Date().toISOString();
@@ -169,8 +299,8 @@ export async function fetchRaffleFromGoogleSheets(
 
     return {
       success: true,
-      message: `Planilha sincronizada! ${importedCount} cota(s) ativas carregadas do Google Sheets.`,
-      numbersCount: importedCount,
+      message: `Planilha sincronizada! ${totalImportedActiveNumbers} cota(s) ativas carregadas do Google Sheets.`,
+      numbersCount: totalImportedActiveNumbers,
       data: result,
     };
   } catch (error: any) {
@@ -273,7 +403,7 @@ export async function syncRaffleToGoogleSheets(
 }
 
 /**
- * Generates the Google Apps Script code with both POST (Save) and GET (Fetch) capabilities
+ * Generates the Google Apps Script code with bi-directional capabilities
  */
 export function generateGoogleAppsScriptCode(): string {
   return `/**
@@ -281,22 +411,22 @@ export function generateGoogleAppsScriptCode(): string {
  * 🎟️ SCRIPT DE INTEGRAÇÃO BI-DIRECIONAL - SISTEMA DE RIFAS COM GOOGLE SHEETS
  * =========================================================================
  * SUPORTA:
- * ✅ Gravar / Salvar automaticamente (POST)
- * ✅ Buscar / Ler dados ao carregar a página (GET)
+ * ✅ Gravar / Salvar automaticamente em tempo real (POST)
+ * ✅ Buscar / Carregar dados ao abrir o site em qualquer navegador (GET)
+ * ✅ Múltiplas Rifas em abas separadas
  * 
- * INSTRUÇÕES RÁPIDAS:
+ * INSTRUÇÕES:
  * 1. No Google Sheets, clique em: Extensões > Apps Script
- * 2. Apague todo o código existente lá e Cole este código inteiro.
- * 3. Clique no ícone de "Salvar" (disquete).
- * 4. Clique em "Implantar" (botão azul no topo) > "Nova implantação" (ou Gerenciar implantações).
+ * 2. Apague todo o código e cole este arquivo completo.
+ * 3. Salve (ícone disquete).
+ * 4. Clique em "Implantar" > "Nova implantação" (ou Gerenciar implantações).
  * 5. Tipo: "Aplicativo da Web".
  * 6. Quem pode acessar: selecione "Qualquer pessoa" (Anyone).
- * 7. Clique em "Implantar", autorize o acesso e COPIE a URL gerada do Webhook.
- * 8. Cole a URL no seu Sistema de Rifas (ou configure na variável NEXT_PUBLIC_SHEETS_WEBHOOK_URL).
+ * 7. Copie a URL gerada e cole no Sistema de Rifas!
  * =========================================================================
  */
 
-// 1. RECEBER DADOS DO SITE E SALVAR NA PLANILHA (POST)
+// 1. RECEBER DADOS DO SITE E GRAVAR NA PLANILHA (POST)
 function doPost(e) {
   try {
     var rawData = e.postData.contents;
@@ -348,7 +478,7 @@ function doPost(e) {
       sheet.autoResizeColumns(1, 11);
     }
 
-    // 2. Aba de Resumo Financeiro
+    // 2. Aba de Resumo Financeiro Geral
     var summarySheet = ss.getSheetByName("Resumo Geral");
     if (!summarySheet) {
       summarySheet = ss.insertSheet("Resumo Geral", 0);
@@ -374,14 +504,15 @@ function doPost(e) {
       }
     }
 
-    summarySheet.getRange("A2:B8").setValues([
+    summarySheet.getRange("A2:B9").setValues([
       ["Título da Rifa", data.rifa ? data.rifa.titulo : ""],
       ["Entidade / Capela", data.rifa ? data.rifa.entidade : ""],
+      ["Preço por Cota (R$)", data.rifa ? data.rifa.precoPorNumero : 10],
+      ["Chave PIX", data.rifa ? data.rifa.chavePix : ""],
       ["Total de Cotas Pagas", totalPago],
       ["Total de Cotas Reservadas", totalReservado],
       ["Total de Cotas Disponíveis", totalLivre],
-      ["Valor Total Arrecadado (R$)", totalArrecadado],
-      ["Última Atualização", new Date().toLocaleString("pt-BR")]
+      ["Valor Total Arrecadado (R$)", totalArrecadado]
     ]);
     summarySheet.autoResizeColumns(1, 2);
 
@@ -396,56 +527,61 @@ function doPost(e) {
   }
 }
 
-// 2. ENVIAR DADOS DA PLANILHA PARA O SITE CARREGAR AO RECARREGAR A PÁGINA (GET)
+// 2. ENVIAR DADOS DA PLANILHA PARA O SITE CARREGAR AO ABRIR (GET)
 function doGet(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheets = ss.getSheets();
-    var sheet = null;
-
-    // Procurar aba de bilhetes
-    for (var s = 0; s < sheets.length; s++) {
-      if (sheets[s].getName().indexOf("Bilhetes") !== -1) {
-        sheet = sheets[s];
-        break;
+    
+    // Obter dados do Resumo Geral se existir
+    var summarySheet = ss.getSheetByName("Resumo Geral");
+    var metaInfo = {};
+    if (summarySheet && summarySheet.getLastRow() >= 2) {
+      var sumValues = summarySheet.getRange(2, 1, Math.min(summarySheet.getLastRow() - 1, 10), 2).getValues();
+      for (var k = 0; k < sumValues.length; k++) {
+        var key = String(sumValues[k][0] || "").trim();
+        var val = sumValues[k][1];
+        if (key.indexOf("Título") !== -1) metaInfo.titulo = String(val);
+        if (key.indexOf("Entidade") !== -1) metaInfo.entidade = String(val);
+        if (key.indexOf("Preço") !== -1) metaInfo.precoPorNumero = Number(val);
+        if (key.indexOf("PIX") !== -1) metaInfo.chavePix = String(val);
+        if (key.indexOf("Total de Cotas") !== -1) metaInfo.totalNumeros = Number(val);
       }
     }
 
-    if (!sheet) {
-      sheet = ss.getSheetByName("Sheet1") || sheets[0];
-    }
-
-    if (!sheet) {
-      return ContentService.createTextOutput(
-        JSON.stringify({ result: "error", error: "Aba de bilhetes não encontrada" })
-      ).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) {
-      return ContentService.createTextOutput(
-        JSON.stringify({ result: "success", cotas: [] })
-      ).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    var values = sheet.getRange(2, 1, lastRow - 1, 11).getValues();
-    var cotas = [];
-
-    for (var i = 0; i < values.length; i++) {
-      var row = values[i];
-      if (row[0] !== "" && row[0] !== null && row[0] !== undefined) {
-        cotas.push({
-          numero: String(row[0]),
-          status: String(row[1] || "DISPONIVEL"),
-          nomeComprador: String(row[2] || ""),
-          telefone: String(row[3] || ""),
-          vendedor: String(row[4] || ""),
-          valor: Number(row[5] || 0),
-          formaPagamento: String(row[6] || "PIX"),
-          dataReserva: String(row[7] || ""),
-          dataPagamento: String(row[8] || ""),
-          reciboId: String(row[9] || ""),
-          email: String(row[10] || "")
+    // Listar todas as abas de bilhetes
+    var allRaffles = [];
+    for (var s = 0; s < sheets.length; s++) {
+      var sName = sheets[s].getName();
+      if (sName.indexOf("Bilhetes") !== -1 || sName === "Sheet1") {
+        var sh = sheets[s];
+        var lastR = sh.getLastRow();
+        var cotas = [];
+        if (lastR > 1) {
+          var rows = sh.getRange(2, 1, lastR - 1, 11).getValues();
+          for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            if (r[0] !== "" && r[0] !== null && r[0] !== undefined) {
+              cotas.push({
+                numero: String(r[0]),
+                status: String(r[1] || "DISPONIVEL"),
+                nomeComprador: String(r[2] || ""),
+                telefone: String(r[3] || ""),
+                vendedor: String(r[4] || ""),
+                valor: Number(r[5] || 0),
+                formaPagamento: String(r[6] || "PIX"),
+                dataReserva: String(r[7] || ""),
+                dataPagamento: String(r[8] || ""),
+                reciboId: String(r[9] || ""),
+                email: String(r[10] || "")
+              });
+            }
+          }
+        }
+        allRaffles.push({
+          sheetName: sName,
+          title: sName.replace("Bilhetes - ", "").trim() || metaInfo.titulo || "Rifa Paroquial",
+          cotas: cotas
         });
       }
     }
@@ -453,8 +589,9 @@ function doGet(e) {
     return ContentService.createTextOutput(
       JSON.stringify({
         result: "success",
-        total: cotas.length,
-        cotas: cotas,
+        meta: metaInfo,
+        raffles: allRaffles,
+        cotas: allRaffles[0] ? allRaffles[0].cotas : [],
         fetchedAt: new Date().toISOString()
       })
     ).setMimeType(ContentService.MimeType.JSON);

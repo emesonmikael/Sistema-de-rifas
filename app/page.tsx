@@ -21,6 +21,8 @@ import {
   updateRaffle,
   expandRaffleNumbers,
   resetToInitialDemoData,
+  setActiveRaffleId,
+  deleteRaffle,
 } from '@/lib/storage';
 import { Raffle, Seller, RaffleNumber, Winner, Expense } from '@/types/raffle';
 import { Navbar } from '@/components/Navbar';
@@ -45,7 +47,7 @@ import {
   getSheetsConfig,
 } from '@/lib/sheetsSync';
 import { sounds } from '@/lib/sound';
-import { CheckCircle2, ShieldAlert, Lock, ArrowRight, UserCheck, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Lock, ArrowRight, UserCheck, RefreshCw, FileSpreadsheet, Gift } from 'lucide-react';
 
 export default function Home() {
   const data = useRaffleSystemData();
@@ -117,11 +119,12 @@ export default function Home() {
   }, [data]);
 
   // Current logged user
+  const currentSellerId = data?.currentSellerId;
   const currentUser = useMemo(() => {
     if (isGuestMode) return null;
-    const found = sellers.find((s) => s.id === data?.currentSellerId);
+    const found = sellers.find((s) => s.id === currentSellerId);
     return found || sellers[0] || null;
-  }, [sellers, data?.currentSellerId, isGuestMode]);
+  }, [sellers, currentSellerId, isGuestMode]);
 
   const isAdmin = currentUser?.role === 'admin';
 
@@ -339,6 +342,24 @@ export default function Home() {
     }
   };
 
+  // Select active raffle
+  const handleSelectRaffle = (raffleId: string) => {
+    setActiveRaffleId(raffleId);
+    sounds.playPop();
+    const found = data.raffles.find((r) => r.id === raffleId);
+    if (found) {
+      showToast(`Rifa ativa: "${found.title}"`, 'info');
+    }
+  };
+
+  // Delete raffle (for admins)
+  const handleDeleteRaffle = (raffleId: string) => {
+    const success = deleteRaffle(raffleId);
+    if (success) {
+      showToast('Rifa excluída com sucesso.', 'info');
+    }
+  };
+
   // Reset to default São José Operário demo
   const handleResetDemo = () => {
     if (confirm('Deseja restaurar os dados de exemplo da Rifa de São José Operário?')) {
@@ -367,6 +388,10 @@ export default function Home() {
         setActiveTab={setActiveTab}
         sellers={sellers}
         currentUser={currentUser}
+        raffles={data.raffles}
+        activeRaffleId={activeRaffle.id}
+        onSelectRaffle={handleSelectRaffle}
+        onDeleteRaffle={handleDeleteRaffle}
         onOpenAuthModal={() => setShowAuthModal(true)}
         onOpenProfileModal={() => setShowProfileModal(true)}
         onOpenNewRaffle={() => {
@@ -527,14 +552,45 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab 5: Sorteador Ao Vivo & Roleta Eletrônica */}
+        {/* Tab 5: Sorteador Ao Vivo & Roleta Eletrônica (Exclusivo para Coordenação / ADM) */}
         {activeTab === 'draw' && (
           <div className="animate-fade-in">
-            <DrawModal
-              raffle={activeRaffle}
-              onClose={() => setActiveTab('grid')}
-              onSaveWinner={handleSaveWinner}
-            />
+            {!isAdmin ? (
+              <div className="w-full max-w-xl mx-auto px-4 py-12 text-center">
+                <div className="bg-white p-6 sm:p-8 rounded-3xl border-2 border-[#eee4db] shadow-lg space-y-4 text-[#2d2a26]">
+                  <div className="w-14 h-14 rounded-2xl bg-[#fdf1eb] border border-[#f0c3b4] text-[#D48166] flex items-center justify-center mx-auto">
+                    <Gift className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-xl font-bold font-serif">Sorteador Restrito à Coordenação</h3>
+                  <p className="text-xs sm:text-sm text-[#7c736a] leading-relaxed">
+                    O Sorteador Oficial ao vivo é de uso exclusivo da <strong>Coordenação / Administrador</strong> da Rifa. Vendedores podem acompanhar as cotas no Balcão de Vendas.
+                  </p>
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAuthModal(true)}
+                      className="px-6 py-3 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>Entrar como Administrador</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('grid')}
+                      className="px-4 py-3 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-bold text-xs rounded-xl border border-[#eee4db] active:scale-95"
+                    >
+                      Voltar aos Bilhetes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <DrawModal
+                raffle={activeRaffle}
+                onClose={() => setActiveTab('grid')}
+                onSaveWinner={handleSaveWinner}
+              />
+            )}
           </div>
         )}
       </main>
