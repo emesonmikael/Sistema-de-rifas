@@ -16,12 +16,14 @@ import {
   Search,
   Check,
   Ticket,
+  UserPlus,
 } from 'lucide-react';
 
 interface SellerDeskProps {
   raffle: Raffle;
   sellers: Seller[];
   currentSellerId?: string;
+  isAdmin?: boolean;
   onSelectSeller: (sellerId: string) => void;
   onConfirmPayment: (number: number) => void;
   onReleaseNumber: (number: number) => void;
@@ -35,17 +37,20 @@ interface SellerDeskProps {
     isPaid: boolean;
   }) => void;
   onOpenReceipt: (numberData: RaffleNumber) => void;
+  onOpenSellerManager?: () => void;
 }
 
 export const SellerDesk: React.FC<SellerDeskProps> = ({
   raffle,
   sellers,
   currentSellerId,
+  isAdmin,
   onSelectSeller,
   onConfirmPayment,
   onReleaseNumber,
   onRegisterSale,
   onOpenReceipt,
+  onOpenSellerManager,
 }) => {
   const activeSeller = sellers.find((s) => s.id === currentSellerId) || sellers[0];
 
@@ -203,20 +208,34 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
           </div>
         </div>
 
-        {/* Switch Seller Profile */}
-        <div className="w-full md:w-auto bg-[#484832] p-2.5 sm:p-3 rounded-2xl border border-white/10 flex items-center justify-between md:justify-start gap-2">
-          <div className="text-xs text-[#e6dfd8] whitespace-nowrap">Vendedor:</div>
-          <select
-            value={activeSeller?.id}
-            onChange={(e) => onSelectSeller(e.target.value)}
-            className="flex-1 md:flex-none bg-[#3b3b28] text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/20 focus:ring-2 focus:ring-[#D48166] focus:outline-none"
-          >
-            {sellers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.role === 'admin' ? 'Coord.' : 'Vendedor'})
-              </option>
-            ))}
-          </select>
+        {/* Switch Seller Profile & Manage Sellers */}
+        <div className="w-full md:w-auto bg-[#484832] p-2.5 sm:p-3 rounded-2xl border border-white/10 flex flex-wrap items-center justify-between md:justify-start gap-2">
+          <div className="flex items-center gap-2 flex-1 md:flex-none">
+            <div className="text-xs text-[#e6dfd8] whitespace-nowrap">Vendedor:</div>
+            <select
+              value={activeSeller?.id}
+              onChange={(e) => onSelectSeller(e.target.value)}
+              className="flex-1 md:flex-none bg-[#3b3b28] text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/20 focus:ring-2 focus:ring-[#D48166] focus:outline-none"
+            >
+              {sellers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.role === 'admin' ? 'Coord.' : 'Vendedor'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {onOpenSellerManager && (
+            <button
+              type="button"
+              onClick={onOpenSellerManager}
+              className="px-3 py-2 bg-[#5A5A40] hover:bg-[#484832] text-white rounded-xl text-xs font-bold border border-white/20 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs whitespace-nowrap"
+              title="Cadastrar novo vendedor ou alterar metas"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>{isAdmin ? '+ Cadastrar Vendedor' : 'Equipe'}</span>
+            </button>
+          )}
         </div>
       </div>
 

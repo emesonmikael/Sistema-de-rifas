@@ -1,4 +1,4 @@
-import { Raffle, SystemData, RaffleNumber } from '@/types/raffle';
+import { Raffle, SystemData, RaffleNumber, Seller } from '@/types/raffle';
 import { DEFAULT_SHEETS_WEBHOOK_URL } from './sheetsConfig';
 import { saveStoredData, getStoredData, createNewRaffle, setActiveRaffleId } from './storage';
 
@@ -53,7 +53,7 @@ export function saveSheetsConfig(config: GoogleSheetsConfig): void {
 }
 
 /**
- * Fetches the latest raffle data from Google Sheets (bi-directional sync)
+ * Fetches the latest raffle and seller data from Google Sheets (bi-directional sync)
  */
 export async function fetchRaffleFromGoogleSheets(
   raffleId?: string,
@@ -292,6 +292,41 @@ export async function fetchRaffleFromGoogleSheets(
       current.raffles[raffleIndex] = currentRaffle;
     }
 
+    // 2. Import and restore Sellers from Google Sheets if available
+    if (result.vendedores && Array.isArray(result.vendedores) && result.vendedores.length > 0) {
+      const existingSellers = [...current.sellers];
+      for (const v of result.vendedores) {
+        const sName = (v.nome || '').trim();
+        if (!sName) continue;
+
+        const idx = existingSellers.findIndex((s) => s.name.toLowerCase() === sName.toLowerCase());
+        if (idx !== -1) {
+          // Update existing seller info
+          existingSellers[idx] = {
+            ...existingSellers[idx],
+            phone: v.telefone || existingSellers[idx].phone,
+            pin: v.pin ? String(v.pin) : existingSellers[idx].pin,
+            role: (v.funcao === 'admin' || v.funcao === 'Coordenador') ? 'admin' : existingSellers[idx].role,
+            targetNumbers: v.meta ? Number(v.meta) : existingSellers[idx].targetNumbers,
+          };
+        } else {
+          // Add new seller from spreadsheet
+          const newSeller: Seller = {
+            id: v.id || `seller-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            name: sName,
+            phone: v.telefone || '',
+            role: (v.funcao === 'admin' || v.funcao === 'Coordenador') ? 'admin' : 'seller',
+            pin: v.pin ? String(v.pin) : '1234',
+            targetNumbers: v.meta ? Number(v.meta) : 25,
+            active: true,
+            createdAt: new Date().toISOString(),
+          };
+          existingSellers.push(newSeller);
+        }
+      }
+      current.sellers = existingSellers;
+    }
+
     saveStoredData(current);
 
     config.lastFetchAt = new Date().toISOString();
@@ -299,7 +334,7 @@ export async function fetchRaffleFromGoogleSheets(
 
     return {
       success: true,
-      message: `Planilha sincronizada! ${totalImportedActiveNumbers} cota(s) ativas carregadas do Google Sheets.`,
+      message: `Planilha sincronizada! ${totalImportedActiveNumbers} cota(s) e equipe de vendedores atualizados com sucesso.`,
       numbersCount: totalImportedActiveNumbers,
       data: result,
     };
@@ -313,7 +348,7 @@ export async function fetchRaffleFromGoogleSheets(
 }
 
 /**
- * Sends a full snapshot of the raffle or an event change to Google Sheets Webhook
+ * Sends a full snapshot of the raffle, expenses, and registered sellers to Google Sheets Webhook
  */
 export async function syncRaffleToGoogleSheets(
   raffle: Raffle,
@@ -331,6 +366,9 @@ export async function syncRaffleToGoogleSheets(
   }
 
   try {
+    const currentData = getStoredData();
+
+    // 1. Cotas da Rifa
     const numbersArray = Object.values(raffle.numbers).map((n) => ({
       numero: n.number.toString().padStart(2, '0'),
       status: n.status === 'paid' ? 'PAGO' : n.status === 'reserved' ? 'RESERVADO' : 'DISPONIVEL',
@@ -346,6 +384,7 @@ export async function syncRaffleToGoogleSheets(
       observacoes: n.notes || '',
     }));
 
+    // 2. Despesas
     const expensesArray = (raffle.expenses || []).map((e) => ({
       id: e.id,
       descricao: e.description,
@@ -353,6 +392,23 @@ export async function syncRaffleToGoogleSheets(
       categoria: e.category,
       data: new Date(e.date).toLocaleDateString('pt-BR'),
     }));
+
+    // 3. Equipe de Vendedores Cadastrados
+    const sellersArray = (currentData.sellers || []).map((s) => {
+      const soldNumbers = Object.values(raffle.numbers).filter(
+        (n) => n.sellerName?.toLowerCase() === s.name.toLowerCase() && n.status === 'paid'
+      ).length;
+      return {
+        id: s.id,
+        nome: s.name,
+        telefone: s.phone,
+        funcao: s.role === 'admin' ? 'Coordenador' : 'Vendedor',
+        pin: s.pin || '1234',
+        meta: s.targetNumbers || 25,
+        cotasPagas: soldNumbers,
+        arrecadado: soldNumbers * raffle.pricePerNumber,
+      };
+    });
 
     const payload = {
       action,
@@ -368,6 +424,7 @@ export async function syncRaffleToGoogleSheets(
       },
       cotas: numbersArray,
       despesas: expensesArray,
+      vendedores: sellersArray,
     };
 
     // Google Apps Script accepts text/plain to avoid preflight CORS
@@ -384,7 +441,7 @@ export async function syncRaffleToGoogleSheets(
       saveSheetsConfig(config);
       return {
         success: true,
-        message: 'Planilha do Google Sheets sincronizada com sucesso!',
+        message: 'Planilha do Google Sheets sincronizada com sucesso (Cotas + Vendedores)!',
         rowsCount: numbersArray.length,
       };
     } else {
@@ -403,7 +460,7 @@ export async function syncRaffleToGoogleSheets(
 }
 
 /**
- * Generates the Google Apps Script code with bi-directional capabilities
+ * Generates the Google Apps Script code with bi-directional capabilities (Cotas + Resumo + Equipe de Vendedores)
  */
 export function generateGoogleAppsScriptCode(): string {
   return `/**
@@ -411,8 +468,9 @@ export function generateGoogleAppsScriptCode(): string {
  * 🎟️ SCRIPT DE INTEGRAÇÃO BI-DIRECIONAL - SISTEMA DE RIFAS COM GOOGLE SHEETS
  * =========================================================================
  * SUPORTA:
- * ✅ Gravar / Salvar automaticamente em tempo real (POST)
- * ✅ Buscar / Carregar dados ao abrir o site em qualquer navegador (GET)
+ * ✅ Gravar e Atualizar Cotas e Bilhetes (POST)
+ * ✅ Gravar e Atualizar Equipe de Vendedores & Metas (POST)
+ * ✅ Buscar e Restaurar Dados e Vendedores ao abrir o site em qualquer celular/PC (GET)
  * ✅ Múltiplas Rifas em abas separadas
  * 
  * INSTRUÇÕES:
@@ -449,13 +507,13 @@ function doPost(e) {
       sheet.setFrozenRows(1);
     }
 
-    // Limpar dados anteriores mantendo cabeçalho
+    // Limpar cotas anteriores mantendo cabeçalho
     var lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       sheet.getRange(2, 1, lastRow - 1, 11).clearContent();
     }
 
-    // Preencher novas linhas
+    // Preencher novas linhas de cotas
     if (data.cotas && data.cotas.length > 0) {
       var rows = [];
       for (var i = 0; i < data.cotas.length; i++) {
@@ -478,7 +536,44 @@ function doPost(e) {
       sheet.autoResizeColumns(1, 11);
     }
 
-    // 2. Aba de Resumo Financeiro Geral
+    // 2. Aba de Equipe e Cadastro de Vendedores
+    if (data.vendedores && data.vendedores.length > 0) {
+      var sellerSheet = ss.getSheetByName("Equipe & Vendedores");
+      if (!sellerSheet) {
+        sellerSheet = ss.insertSheet("Equipe & Vendedores");
+        var sellerHeaders = [
+          "ID", "Nome do Vendedor", "WhatsApp / Telefone", "Função",
+          "PIN de Acesso", "Meta de Cotas", "Cotas Pagas", "Valor Arrecadado (R$)"
+        ];
+        sellerSheet.appendRow(sellerHeaders);
+        sellerSheet.getRange(1, 1, 1, 8).setBackground("#5A5A40").setFontColor("#FFFFFF").setFontWeight("bold");
+        sellerSheet.setFrozenRows(1);
+      }
+
+      var sLastRow = sellerSheet.getLastRow();
+      if (sLastRow > 1) {
+        sellerSheet.getRange(2, 1, sLastRow - 1, 8).clearContent();
+      }
+
+      var sellerRows = [];
+      for (var v = 0; v < data.vendedores.length; v++) {
+        var sel = data.vendedores[v];
+        sellerRows.push([
+          sel.id,
+          sel.nome,
+          sel.telefone,
+          sel.funcao,
+          sel.pin,
+          sel.meta,
+          sel.cotasPagas || 0,
+          sel.arrecadado || 0
+        ]);
+      }
+      sellerSheet.getRange(2, 1, sellerRows.length, 8).setValues(sellerRows);
+      sellerSheet.autoResizeColumns(1, 8);
+    }
+
+    // 3. Aba de Resumo Financeiro Geral
     var summarySheet = ss.getSheetByName("Resumo Geral");
     if (!summarySheet) {
       summarySheet = ss.insertSheet("Resumo Geral", 0);
@@ -549,6 +644,26 @@ function doGet(e) {
       }
     }
 
+    // Obter Vendedores Cadastrados da aba "Equipe & Vendedores"
+    var sellerSheet = ss.getSheetByName("Equipe & Vendedores");
+    var sellersList = [];
+    if (sellerSheet && sellerSheet.getLastRow() >= 2) {
+      var sellerData = sellerSheet.getRange(2, 1, sellerSheet.getLastRow() - 1, 8).getValues();
+      for (var v = 0; v < sellerData.length; v++) {
+        var sRow = sellerData[v];
+        if (sRow[1]) { // Se tem nome
+          sellersList.push({
+            id: String(sRow[0] || ""),
+            nome: String(sRow[1] || ""),
+            telefone: String(sRow[2] || ""),
+            funcao: String(sRow[3] || "Vendedor"),
+            pin: String(sRow[4] || "1234"),
+            meta: Number(sRow[5] || 25)
+          });
+        }
+      }
+    }
+
     // Listar todas as abas de bilhetes
     var allRaffles = [];
     for (var s = 0; s < sheets.length; s++) {
@@ -591,6 +706,7 @@ function doGet(e) {
         result: "success",
         meta: metaInfo,
         raffles: allRaffles,
+        vendedores: sellersList,
         cotas: allRaffles[0] ? allRaffles[0].cotas : [],
         fetchedAt: new Date().toISOString()
       })

@@ -26,6 +26,7 @@ interface UserProfileModalProps {
   onUpdatePin: (newPin: string) => void;
   onLogout: () => void;
   onSwitchUser: () => void;
+  onOpenSellerManager?: () => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -35,6 +36,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onUpdatePin,
   onLogout,
   onSwitchUser,
+  onOpenSellerManager,
 }) => {
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [currentPinInput, setCurrentPinInput] = useState('');
@@ -296,14 +298,30 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </form>
           ) : (
-            <button
-              type="button"
-              onClick={() => setIsChangingPin(true)}
-              className="w-full py-2.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-bold text-xs rounded-xl border border-[#eee4db] flex items-center justify-center gap-1.5 transition-colors active:scale-95"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-[#5A5A40]" />
-              <span>Trocar Meu PIN de Acesso</span>
-            </button>
+            <div className="space-y-2">
+              {isAdmin && onOpenSellerManager && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenSellerManager();
+                  }}
+                  className="w-full py-2.5 bg-[#f0f4ee] hover:bg-[#e4ecdf] text-[#5A5A40] font-bold text-xs rounded-xl border border-[#d1dec8] flex items-center justify-center gap-2 transition-colors active:scale-95 shadow-2xs"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#5A5A40]" />
+                  <span>Cadastrar & Gerenciar Vendedores</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsChangingPin(true)}
+                className="w-full py-2.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-bold text-xs rounded-xl border border-[#eee4db] flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-[#5A5A40]" />
+                <span>Trocar Meu PIN de Acesso</span>
+              </button>
+            </div>
           )}
 
           {/* Action Footer: Switch user & Logout */}

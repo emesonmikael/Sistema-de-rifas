@@ -190,7 +190,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
 
                 {isAdmin ? (
-                  <div className="pt-2 border-t border-[#eee4db]">
+                  <div className="pt-2 border-t border-[#eee4db] space-y-1.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -201,6 +201,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                     >
                       <Plus className="w-3.5 h-3.5 stroke-[3]" />
                       <span>Criar Nova Rifa</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRaffleDropdown(false);
+                        onOpenSellerManager();
+                      }}
+                      className="w-full py-1.5 bg-[#f0f4ee] hover:bg-[#e4ecdf] text-[#5A5A40] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 border border-[#d1dec8]"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-[#5A5A40]" />
+                      <span>Cadastrar / Gerenciar Vendedores</span>
                     </button>
                   </div>
                 ) : (
@@ -353,11 +364,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onOpenSellerManager}
-              className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] rounded-lg text-xs font-semibold border border-[#eee4db] transition-colors active:scale-95"
-              title="Gerenciar equipe de vendedores"
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] rounded-xl text-xs font-bold border border-[#eee4db] transition-colors active:scale-95 shrink-0"
+              title="Cadastrar e gerenciar equipe de vendedores"
             >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Equipe</span>
+              <UserCheck className="w-3.5 h-3.5 text-[#5A5A40]" />
+              <span className="hidden xs:inline sm:inline">Equipe</span>
             </button>
 
             {/* New Raffle button for admins */}

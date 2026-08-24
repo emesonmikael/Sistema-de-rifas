@@ -18,6 +18,7 @@ import {
   Layers,
   Send,
   Sparkles,
+  UserCheck,
 } from 'lucide-react';
 
 interface FinancialDashboardProps {
@@ -30,6 +31,7 @@ interface FinancialDashboardProps {
   onAddExpense: (expense: Omit<Expense, 'id'>) => void;
   onDeleteExpense: (expenseId: string) => void;
   onOpenExpandNumbers?: () => void;
+  onOpenSellerManager?: () => void;
 }
 
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
@@ -42,6 +44,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   onAddExpense,
   onDeleteExpense,
   onOpenExpandNumbers,
+  onOpenSellerManager,
 }) => {
   const [selectedPendingNums, setSelectedPendingNums] = useState<number[]>([]);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -431,9 +434,22 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
         {/* Right: Seller Reconciliation & Cash in Hand */}
         <div className="lg:col-span-5 bg-white rounded-3xl p-4 sm:p-6 border border-[#eee4db] shadow-xs space-y-4">
-          <div className="pb-3 border-b border-[#eee4db]">
-            <h3 className="font-bold text-base text-[#2d2a26]">Prestações de Conta da Equipe</h3>
-            <p className="text-xs text-[#7c736a]">Valores em espécie arrecadados por vendedor</p>
+          <div className="pb-3 border-b border-[#eee4db] flex items-center justify-between gap-2">
+            <div>
+              <h3 className="font-bold text-base text-[#2d2a26]">Prestações de Conta da Equipe</h3>
+              <p className="text-xs text-[#7c736a]">Valores em espécie arrecadados por vendedor</p>
+            </div>
+            {onOpenSellerManager && (
+              <button
+                type="button"
+                onClick={onOpenSellerManager}
+                className="px-2.5 py-1.5 bg-[#f0f4ee] hover:bg-[#e4ecdf] text-[#5A5A40] rounded-xl text-xs font-bold border border-[#d1dec8] flex items-center gap-1 transition-all active:scale-95 shadow-2xs shrink-0"
+                title="Cadastrar ou editar vendedores"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Gerenciar</span> Equipe
+              </button>
+            )}
           </div>
 
           <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">

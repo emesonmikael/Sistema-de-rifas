@@ -476,11 +476,13 @@ export default function Home() {
               raffle={activeRaffle}
               sellers={sellers}
               currentSellerId={currentUser?.id || sellers[0]?.id}
+              isAdmin={isAdmin}
               onSelectSeller={handleSelectSeller}
               onConfirmPayment={handleConfirmPayment}
               onReleaseNumber={handleReleaseNumber}
               onRegisterSale={handleRegisterSale}
               onOpenReceipt={(numData) => setShowReceiptModal(numData)}
+              onOpenSellerManager={() => setShowSellerModal(true)}
             />
           </div>
         )}
@@ -529,6 +531,7 @@ export default function Home() {
                 onAddExpense={handleAddExpense}
                 onDeleteExpense={handleDeleteExpense}
                 onOpenExpandNumbers={() => setShowExpandNumbersModal(true)}
+                onOpenSellerManager={() => setShowSellerModal(true)}
               />
             )}
           </div>
@@ -626,6 +629,7 @@ export default function Home() {
           onUpdatePin={handleUpdatePin}
           onLogout={handleLogout}
           onSwitchUser={() => setShowAuthModal(true)}
+          onOpenSellerManager={() => setShowSellerModal(true)}
         />
       )}
 
