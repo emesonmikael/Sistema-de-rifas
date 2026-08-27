@@ -122,141 +122,64 @@ export async function fetchRaffleFromGoogleSheets(
     const current = getStoredData();
     let totalImportedActiveNumbers = 0;
 
-    // 1. Process multiple raffles if returned by Apps Script
-    if (result.raffles && Array.isArray(result.raffles) && result.raffles.length > 0) {
-      for (const rData of result.raffles) {
-        const raffleTitle = rData.title || (result.meta && result.meta.titulo) || 'Rifa Paroquial';
-        const cotasArray = rData.cotas || [];
+    // Target existing raffle without creating new duplicates
+    const activeTargetId = raffleId || current.activeRaffleId;
+    let targetIndex = current.raffles.findIndex((r) => r.id === activeTargetId);
+    if (targetIndex === -1 && current.raffles.length > 0) {
+      targetIndex = 0;
+    }
 
-        // Find existing raffle by title or match active
-        let targetIndex = current.raffles.findIndex(
-          (r) => r.title.toLowerCase().trim() === raffleTitle.toLowerCase().trim()
+    if (targetIndex !== -1) {
+      const targetRaffle = current.raffles[targetIndex];
+      const updatedNumbers = { ...targetRaffle.numbers };
+
+      // Extract cotas from result.cotas or result.raffles
+      let cotasToImport: any[] = [];
+      if (result.cotas && Array.isArray(result.cotas) && result.cotas.length > 0) {
+        cotasToImport = result.cotas;
+      } else if (result.raffles && Array.isArray(result.raffles) && result.raffles.length > 0) {
+        // Find sheet matching active raffle or use first sheet
+        const matchingSheet = result.raffles.find(
+          (rf: any) =>
+            rf.sheetName?.toLowerCase().includes(targetRaffle.title.toLowerCase()) ||
+            rf.title?.toLowerCase().includes(targetRaffle.title.toLowerCase())
         );
-
-        if (targetIndex === -1 && current.raffles.length === 1 && current.raffles[0].id === 'demo-raffle-01') {
-          // If only demo raffle exists, adapt the demo raffle to the real one
-          targetIndex = 0;
-        }
-
-        let maxNum = 50;
-        cotasArray.forEach((c: any) => {
-          const n = parseInt(c.numero, 10);
-          if (!isNaN(n) && n > maxNum) maxNum = n;
-        });
-
-        if (targetIndex === -1) {
-          // Create new raffle entry
-          const newRaffleId = `raffle-sheet-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-          const initialNumbers: Record<number, RaffleNumber> = {};
-          for (let i = 1; i <= Math.max(maxNum, 50); i++) {
-            initialNumbers[i] = { number: i, status: 'available' };
-          }
-          const createdRaffle: Raffle = {
-            id: newRaffleId,
-            title: raffleTitle,
-            category: 'Ação Solidária',
-            causeDescription: 'Em prol da paróquia e comunidade',
-            chapelOrOrgName: (result.meta && result.meta.entidade) || 'Capela de São José Operário',
-            location: 'Comunidade Paroquial',
-            pricePerNumber: (result.meta && result.meta.precoPorNumero) || 10,
-            totalNumbers: Math.max(maxNum, 50),
-            pixKey: (result.meta && result.meta.chavePix) || 'paroquia.rifa@gmail.com',
-            pixKeyType: 'email',
-            pixReceiverName: (result.meta && result.meta.entidade) || 'Coordenação da Rifa',
-            pixCity: 'Comunidade',
-            status: 'active',
-            numbers: initialNumbers,
-            winners: [],
-            expenses: [],
-            reservationTimeoutHours: 24,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            prizes: [
-              {
-                order: 1,
-                title: '1º PRÊMIO',
-                description: 'Prêmio Principal',
-                estimatedValue: 500,
-                donorName: 'Doação Paroquial',
-                details: 'Prêmio oficial',
-              },
-            ],
-          };
-          current.raffles.push(createdRaffle);
-          targetIndex = current.raffles.length - 1;
-        }
-
-        const targetRaffle = current.raffles[targetIndex];
-        const updatedNumbers = { ...targetRaffle.numbers };
-
-        // Update raffle meta if available
-        if (result.meta) {
-          if (result.meta.titulo) targetRaffle.title = result.meta.titulo;
-          if (result.meta.entidade) targetRaffle.chapelOrOrgName = result.meta.entidade;
-          if (result.meta.precoPorNumero) targetRaffle.pricePerNumber = Number(result.meta.precoPorNumero);
-          if (result.meta.chavePix) targetRaffle.pixKey = result.meta.chavePix;
-          if (result.meta.totalNumeros && result.meta.totalNumeros > targetRaffle.totalNumbers) {
-            targetRaffle.totalNumbers = Number(result.meta.totalNumeros);
-          }
-        }
-
-        // Ensure totalNumbers covers highest number
-        if (maxNum > targetRaffle.totalNumbers) {
-          targetRaffle.totalNumbers = maxNum;
-        }
-
-        for (let i = 1; i <= targetRaffle.totalNumbers; i++) {
-          if (!updatedNumbers[i]) {
-            updatedNumbers[i] = { number: i, status: 'available' };
-          }
-        }
-
-        // Apply cotas
-        for (const c of cotasArray) {
-          const numInt = parseInt(c.numero, 10);
-          if (isNaN(numInt)) continue;
-
-          const rawStatus = (c.status || '').toUpperCase().trim();
-          const status: RaffleNumber['status'] =
-            rawStatus === 'PAGO' ? 'paid' : rawStatus === 'RESERVADO' ? 'reserved' : 'available';
-
-          const existing = updatedNumbers[numInt] || { number: numInt, status: 'available' };
-
-          updatedNumbers[numInt] = {
-            ...existing,
-            number: numInt,
-            status: status,
-            buyerName: c.nomeComprador || existing.buyerName || (status !== 'available' ? 'Comprador' : undefined),
-            buyerPhone: c.telefone || existing.buyerPhone,
-            buyerEmail: c.email || existing.buyerEmail,
-            sellerName: c.vendedor || existing.sellerName,
-            paymentMethod: (c.formaPagamento as any) || existing.paymentMethod || 'PIX',
-            receiptId: c.reciboId || existing.receiptId,
-            notes: c.observacoes || existing.notes,
-            paidAt: status === 'paid' ? (c.dataPagamento || existing.paidAt || new Date().toISOString()) : undefined,
-            reservedAt: status !== 'available' ? (c.dataReserva || existing.reservedAt || new Date().toISOString()) : undefined,
-            amountPaid: status === 'paid' ? Number(c.valor || targetRaffle.pricePerNumber) : undefined,
-          };
-
-          if (status !== 'available') {
-            totalImportedActiveNumbers++;
-          }
-        }
-
-        targetRaffle.numbers = updatedNumbers;
-        targetRaffle.updatedAt = new Date().toISOString();
-        current.raffles[targetIndex] = targetRaffle;
+        cotasToImport = matchingSheet ? matchingSheet.cotas : result.raffles[0].cotas || [];
       }
-    } else if (result.cotas && Array.isArray(result.cotas)) {
-      // Single cotas array fallback
-      const activeRaffleId = raffleId || current.activeRaffleId;
-      let raffleIndex = current.raffles.findIndex((r) => r.id === activeRaffleId);
-      if (raffleIndex === -1) raffleIndex = 0;
 
-      const currentRaffle = current.raffles[raffleIndex];
-      const updatedNumbers = { ...currentRaffle.numbers };
+      // Update raffle meta if returned from spreadsheet
+      if (result.meta) {
+        if (result.meta.titulo && !result.meta.titulo.includes('undefined')) {
+          targetRaffle.title = result.meta.titulo;
+        }
+        if (result.meta.entidade) targetRaffle.chapelOrOrgName = result.meta.entidade;
+        if (result.meta.precoPorNumero && Number(result.meta.precoPorNumero) > 0) {
+          targetRaffle.pricePerNumber = Number(result.meta.precoPorNumero);
+        }
+        if (result.meta.chavePix) targetRaffle.pixKey = result.meta.chavePix;
+        if (result.meta.totalNumeros && Number(result.meta.totalNumeros) > targetRaffle.totalNumbers) {
+          targetRaffle.totalNumbers = Number(result.meta.totalNumeros);
+        }
+      }
 
-      for (const c of result.cotas) {
+      let maxNum = targetRaffle.totalNumbers;
+      cotasToImport.forEach((c: any) => {
+        const n = parseInt(c.numero, 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      });
+
+      if (maxNum > targetRaffle.totalNumbers) {
+        targetRaffle.totalNumbers = maxNum;
+      }
+
+      for (let i = 1; i <= targetRaffle.totalNumbers; i++) {
+        if (!updatedNumbers[i]) {
+          updatedNumbers[i] = { number: i, status: 'available' };
+        }
+      }
+
+      // Apply imported cotas
+      for (const c of cotasToImport) {
         const numInt = parseInt(c.numero, 10);
         if (isNaN(numInt)) continue;
 
@@ -279,7 +202,7 @@ export async function fetchRaffleFromGoogleSheets(
           notes: c.observacoes || existing.notes,
           paidAt: status === 'paid' ? (c.dataPagamento || existing.paidAt || new Date().toISOString()) : undefined,
           reservedAt: status !== 'available' ? (c.dataReserva || existing.reservedAt || new Date().toISOString()) : undefined,
-          amountPaid: status === 'paid' ? Number(c.valor || currentRaffle.pricePerNumber) : undefined,
+          amountPaid: status === 'paid' ? Number(c.valor || targetRaffle.pricePerNumber) : undefined,
         };
 
         if (status !== 'available') {
@@ -287,9 +210,9 @@ export async function fetchRaffleFromGoogleSheets(
         }
       }
 
-      currentRaffle.numbers = updatedNumbers;
-      currentRaffle.updatedAt = new Date().toISOString();
-      current.raffles[raffleIndex] = currentRaffle;
+      targetRaffle.numbers = updatedNumbers;
+      targetRaffle.updatedAt = new Date().toISOString();
+      current.raffles[targetIndex] = targetRaffle;
     }
 
     // 2. Import and restore Sellers from Google Sheets if available
