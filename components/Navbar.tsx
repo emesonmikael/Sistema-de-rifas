@@ -32,6 +32,7 @@ interface NavbarProps {
   onOpenAuthModal: () => void;
   onOpenProfileModal: () => void;
   onOpenNewRaffle: () => void;
+  onOpenRaffleManager: () => void;
   onOpenSellerManager: () => void;
   onOpenSheetsSync: () => void;
   onResetDemo: () => void;
@@ -50,6 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuthModal,
   onOpenProfileModal,
   onOpenNewRaffle,
+  onOpenRaffleManager,
   onOpenSellerManager,
   onOpenSheetsSync,
   onResetDemo,
@@ -75,34 +77,34 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <>
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md text-[#423d38] border-b border-[#eee4db] shadow-xs">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md text-[#423d38] border-b border-[#eee4db] shadow-xs w-full overflow-x-hidden">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3">
           {/* Zone 1: Brand Title & Raffle Switcher Dropdown */}
-          <div className="relative flex items-center gap-2 sm:gap-3 shrink-0 min-w-0" ref={dropdownRef}>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#5A5A40] flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-xs shrink-0">
-              <Award className="w-4 h-4 sm:w-5 sm:h-5 text-[#fdfaf7]" />
+          <div className="relative flex items-center gap-1.5 sm:gap-2.5 shrink-0 min-w-0" ref={dropdownRef}>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#5A5A40] flex items-center justify-center text-white font-black text-base sm:text-lg shadow-xs shrink-0">
+              <Award className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#fdfaf7]" />
             </div>
 
             {/* Interactive Raffle Selector Trigger */}
             <button
               type="button"
               onClick={() => setShowRaffleDropdown(!showRaffleDropdown)}
-              className="text-left group flex items-center gap-1.5 p-1 rounded-xl hover:bg-[#f8f5f0] transition-all max-w-[140px] sm:max-w-[240px] md:max-w-[280px]"
-              title="Clique para alternar ou gerenciar rifas"
+              className="text-left group flex items-center gap-1 p-1 rounded-xl hover:bg-[#f8f5f0] transition-all max-w-[120px] xs:max-w-[150px] sm:max-w-[200px] md:max-w-[220px] lg:max-w-[260px]"
+              title="Clique para alternar, gerenciar ou apagar rifas"
             >
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-black tracking-tight text-sm sm:text-base text-[#2d2a26] leading-none">
+                <div className="flex items-center gap-1">
+                  <span className="font-black tracking-tight text-xs sm:text-sm text-[#2d2a26] leading-none">
                     RifaPix
                   </span>
                   {raffles.length > 1 && (
                     <span className="text-[9px] bg-[#e8f0e8] text-[#1e7e34] border border-[#c8e6c9] px-1.5 py-0.2 rounded-full font-bold">
-                      {raffles.length} rifas
+                      {raffles.length}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <p className="text-[11px] sm:text-xs font-semibold text-[#7c736a] group-hover:text-[#2d2a26] truncate">
+                <div className="flex items-center gap-0.5 mt-0.5">
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-[#7c736a] group-hover:text-[#2d2a26] truncate">
                     {activeRaffleTitle}
                   </p>
                   <ChevronDown className="w-3 h-3 text-[#7c736a] shrink-0 group-hover:text-[#2d2a26]" />
@@ -110,7 +112,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </button>
 
-            {/* Dropdown Menu to Switch Between Created Raffles */}
+            {/* Dropdown Menu to Switch Between Created Raffles & Management */}
             {showRaffleDropdown && (
               <div className="absolute top-full left-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl border border-[#eee4db] shadow-xl p-2 z-50 animate-fade-in text-[#2d2a26]">
                 <div className="flex items-center justify-between px-2.5 py-2 border-b border-[#eee4db] text-xs font-bold text-[#7c736a] uppercase tracking-wider">
@@ -123,12 +125,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                       type="button"
                       onClick={() => {
                         setShowRaffleDropdown(false);
-                        onOpenNewRaffle();
+                        onOpenRaffleManager();
                       }}
-                      className="text-[#D48166] hover:underline font-extrabold flex items-center gap-0.5 lowercase text-[11px]"
+                      className="text-[#5A5A40] hover:underline font-extrabold flex items-center gap-1 text-[11px]"
+                      title="Gerenciar lista e apagar rifas antigas"
                     >
-                      <Plus className="w-3 h-3 stroke-[3]" />
-                      <span>nova</span>
+                      <span>Gerenciar</span>
                     </button>
                   )}
                 </div>
@@ -168,17 +170,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                         <div className="flex items-center gap-1 shrink-0">
                           {isSelected && <Check className="w-4 h-4 text-[#5A5A40]" />}
-                          {isAdmin && raffles.length > 1 && onDeleteRaffle && (
+                          {isAdmin && onDeleteRaffle && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm(`Deseja realmente excluir a rifa "${raf.title}"?`)) {
+                                if (confirm(`Deseja realmente excluir e limpar a rifa "${raf.title}"?`)) {
                                   onDeleteRaffle(raf.id);
                                 }
                               }}
                               className="p-1 text-[#a89d91] hover:text-red-600 rounded hover:bg-red-50"
-                              title="Excluir rifa"
+                              title="Apagar rifa"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -202,6 +204,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <Plus className="w-3.5 h-3.5 stroke-[3]" />
                       <span>Criar Nova Rifa</span>
                     </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRaffleDropdown(false);
+                        onOpenRaffleManager();
+                      }}
+                      className="w-full py-1.5 bg-[#fef0ea] hover:bg-[#fde3d8] text-[#D48166] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 border border-[#fbd3c1]"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-[#D48166]" />
+                      <span>Gerenciar & Apagar Rifas</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => {
@@ -232,63 +247,58 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Zone 2: Navigation Links (Desktop) */}
-          <nav className="hidden md:flex items-center gap-1 bg-[#f8f5f0] p-1 rounded-xl border border-[#eee4db]">
+          {/* Zone 2: Navigation Links (Desktop/Tablet) - Compact & Fluid */}
+          <nav className="hidden md:flex items-center gap-0.5 lg:gap-1 bg-[#f8f5f0] p-1 rounded-xl border border-[#eee4db] shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('grid')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
+              className={`flex items-center gap-1.5 px-2 lg:px-2.5 xl:px-3 py-1.5 rounded-lg text-xs lg:text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'grid'
                   ? 'bg-[#5A5A40] text-white shadow-xs'
                   : 'text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#ede6df]'
               }`}
             >
-              <Grid className="w-4 h-4" />
-              <span>Grade & Bilhetes</span>
+              <Grid className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
+              <span>Bilhetes</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('seller')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
+              className={`flex items-center gap-1.5 px-2 lg:px-2.5 xl:px-3 py-1.5 rounded-lg text-xs lg:text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'seller'
                   ? 'bg-[#5A5A40] text-white shadow-xs'
                   : 'text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#ede6df]'
               }`}
             >
-              <UserCheck className="w-4 h-4" />
-              <span>Balcão do Vendedor</span>
+              <UserCheck className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
+              <span>Vender</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('finance')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
+              className={`flex items-center gap-1.5 px-2 lg:px-2.5 xl:px-3 py-1.5 rounded-lg text-xs lg:text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'finance'
                   ? 'bg-[#5A5A40] text-white shadow-xs'
                   : 'text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#ede6df]'
               }`}
             >
-              <DollarSign className="w-4 h-4" />
-              <span>Controle Financeiro</span>
-              {!isAdmin && (
-                <span className="text-[9px] bg-[#eee4db] text-[#7c736a] px-1.5 py-0.2 rounded font-bold">
-                  Admin
-                </span>
-              )}
+              <DollarSign className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
+              <span>Financeiro</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('reports')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
+              className={`flex items-center gap-1.5 px-2 lg:px-2.5 xl:px-3 py-1.5 rounded-lg text-xs lg:text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
                 activeTab === 'reports'
                   ? 'bg-[#5A5A40] text-white shadow-xs'
                   : 'text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#ede6df]'
               }`}
             >
-              <FileText className="w-4 h-4" />
-              <span>Relatórios & Prestação</span>
+              <FileText className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
+              <span>Relatórios</span>
             </button>
 
             {/* Sorteador Ao Vivo - EXCLUSIVO PARA ADMINISTRADOR */}
@@ -296,68 +306,29 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('draw')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap active:scale-95 ${
+                className={`flex items-center gap-1.5 px-2 lg:px-2.5 xl:px-3 py-1.5 rounded-lg text-xs lg:text-sm font-bold transition-colors whitespace-nowrap active:scale-95 ${
                   activeTab === 'draw'
-                    ? 'bg-[#D48166] text-white font-bold shadow-xs'
+                    ? 'bg-[#D48166] text-white shadow-xs'
                     : 'text-[#D48166] hover:bg-[#fdf1eb]'
                 }`}
               >
-                <Gift className="w-4 h-4" />
-                <span>Sorteador Ao Vivo</span>
+                <Gift className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" />
+                <span>Sorteio</span>
               </button>
             )}
           </nav>
 
-          {/* Zone 3: User Auth / Profile Badge & Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Authenticated User Button / Login Trigger */}
-            {currentUser ? (
-              <button
-                type="button"
-                onClick={onOpenProfileModal}
-                className="flex items-center gap-2 px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] rounded-xl border border-[#eee4db] text-xs transition-all active:scale-95"
-                title="Abrir Meu Perfil / Trocar PIN"
-              >
-                <div
-                  className={`w-6 h-6 rounded-lg text-white font-bold text-[10px] flex items-center justify-center shrink-0 ${
-                    isAdmin ? 'bg-[#5A5A40]' : 'bg-[#D48166]'
-                  }`}
-                >
-                  {currentUser.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="text-left hidden sm:block max-w-[110px] truncate">
-                  <span className="font-bold text-[#2d2a26] block truncate leading-tight">
-                    {currentUser.name.split(' ')[0]}
-                  </span>
-                  <span
-                    className={`text-[9px] font-extrabold uppercase ${
-                      isAdmin ? 'text-[#5A5A40]' : 'text-[#D48166]'
-                    }`}
-                  >
-                    {isAdmin ? '👑 Coordenação' : '🤝 Vendedor'}
-                  </span>
-                </div>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenAuthModal}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5A5A40] hover:bg-[#484832] text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Entrar</span>
-              </button>
-            )}
-
+          {/* Zone 3: User Auth / Profile Badge & Actions (Responsive & No-Overflow) */}
+          <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 shrink-0">
             {/* Google Sheets Sync Button */}
             <button
               type="button"
               onClick={onOpenSheetsSync}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#f0f9f1] hover:bg-[#e1f3e3] text-[#1e7e34] border border-[#c8e6c9] rounded-lg text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-[#f0f9f1] hover:bg-[#e1f3e3] text-[#1e7e34] border border-[#c8e6c9] rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
               title="Sincronizar com Planilha Google Sheets"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Planilha Sheets</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline">Planilha</span>
             </button>
 
             {/* Team Manager Button */}
@@ -367,8 +338,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] rounded-xl text-xs font-bold border border-[#eee4db] transition-colors active:scale-95 shrink-0"
               title="Cadastrar e gerenciar equipe de vendedores"
             >
-              <UserCheck className="w-3.5 h-3.5 text-[#5A5A40]" />
-              <span className="hidden xs:inline sm:inline">Equipe</span>
+              <UserCheck className="w-3.5 h-3.5 text-[#5A5A40] shrink-0" />
+              <span className="hidden md:inline">Equipe</span>
             </button>
 
             {/* New Raffle button for admins */}
@@ -376,10 +347,50 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onOpenNewRaffle}
-                className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 bg-[#D48166] hover:bg-[#c27055] text-white rounded-lg text-xs font-bold transition-all shadow-xs active:scale-95 shrink-0"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-[#D48166] hover:bg-[#c27055] text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 shrink-0"
+                title="Criar nova rifa"
               >
-                <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                <span>Nova Rifa</span>
+                <Plus className="w-3.5 h-3.5 stroke-[3] shrink-0" />
+                <span className="hidden sm:inline">Nova Rifa</span>
+              </button>
+            )}
+
+            {/* Authenticated User Button / Login Trigger */}
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={onOpenProfileModal}
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] rounded-xl border border-[#eee4db] text-xs transition-all active:scale-95 shrink-0"
+                title="Abrir Meu Perfil / Trocar PIN / Gerenciar Rifas"
+              >
+                <div
+                  className={`w-6 h-6 rounded-lg text-white font-bold text-[10px] flex items-center justify-center shrink-0 ${
+                    isAdmin ? 'bg-[#5A5A40]' : 'bg-[#D48166]'
+                  }`}
+                >
+                  {currentUser.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="text-left hidden xl:block max-w-[90px] truncate">
+                  <span className="font-bold text-[#2d2a26] block truncate leading-tight text-xs">
+                    {currentUser.name.split(' ')[0]}
+                  </span>
+                  <span
+                    className={`text-[9px] font-extrabold uppercase block leading-none ${
+                      isAdmin ? 'text-[#5A5A40]' : 'text-[#D48166]'
+                    }`}
+                  >
+                    {isAdmin ? 'Coord.' : 'Vendedor'}
+                  </span>
+                </div>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenAuthModal}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#5A5A40] hover:bg-[#484832] text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 shrink-0"
+              >
+                <LogIn className="w-3.5 h-3.5 shrink-0" />
+                <span>Entrar</span>
               </button>
             )}
 
@@ -387,7 +398,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onOpenAuthModal}
-              className="p-1.5 text-[#7c736a] hover:text-[#5A5A40] hover:bg-[#f8f5f0] rounded-lg transition-colors active:scale-95 shrink-0"
+              className="p-1.5 text-[#7c736a] hover:text-[#5A5A40] hover:bg-[#f8f5f0] rounded-xl transition-colors active:scale-95 shrink-0 hidden sm:flex"
               title="Alternar login de Vendedor ou Administrador"
             >
               <Lock className="w-4 h-4" />
@@ -397,7 +408,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onResetDemo}
-              className="p-1.5 text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#f8f5f0] rounded-lg transition-colors active:scale-95 shrink-0"
+              className="p-1.5 text-[#7c736a] hover:text-[#2d2a26] hover:bg-[#f8f5f0] rounded-xl transition-colors active:scale-95 shrink-0 hidden lg:flex"
               title="Restaurar dados de exemplo"
             >
               <RotateCcw className="w-4 h-4" />

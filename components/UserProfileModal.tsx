@@ -17,6 +17,7 @@ import {
   Sparkles,
   QrCode,
   Share2,
+  Layers,
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -27,6 +28,7 @@ interface UserProfileModalProps {
   onLogout: () => void;
   onSwitchUser: () => void;
   onOpenSellerManager?: () => void;
+  onOpenRaffleManager?: () => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -37,6 +39,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onLogout,
   onSwitchUser,
   onOpenSellerManager,
+  onOpenRaffleManager,
 }) => {
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [currentPinInput, setCurrentPinInput] = useState('');
@@ -299,6 +302,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </form>
           ) : (
             <div className="space-y-2">
+              {isAdmin && onOpenRaffleManager && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenRaffleManager();
+                  }}
+                  className="w-full py-2.5 bg-[#fef0ea] hover:bg-[#fde3d8] text-[#D48166] font-bold text-xs rounded-xl border border-[#fbd3c1] flex items-center justify-center gap-2 transition-colors active:scale-95 shadow-2xs"
+                >
+                  <Layers className="w-4 h-4 text-[#D48166]" />
+                  <span>Gerenciar & Limpar Lista de Rifas</span>
+                </button>
+              )}
+
               {isAdmin && onOpenSellerManager && (
                 <button
                   type="button"

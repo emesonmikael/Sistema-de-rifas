@@ -41,6 +41,7 @@ import { ExpandNumbersModal } from '@/components/ExpandNumbersModal';
 import { GoogleSheetsSyncModal } from '@/components/GoogleSheetsSyncModal';
 import { AuthModal } from '@/components/AuthModal';
 import { UserProfileModal } from '@/components/UserProfileModal';
+import { RaffleManagerModal } from '@/components/RaffleManagerModal';
 import {
   syncRaffleToGoogleSheets,
   fetchRaffleFromGoogleSheets,
@@ -65,6 +66,7 @@ export default function Home() {
   const [showSellerModal, setShowSellerModal] = useState(false);
   const [showNewRaffleModal, setShowNewRaffleModal] = useState(false);
   const [showEditRaffleModal, setShowEditRaffleModal] = useState(false);
+  const [showRaffleManagerModal, setShowRaffleManagerModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showExpandNumbersModal, setShowExpandNumbersModal] = useState(false);
   const [showSheetsModal, setShowSheetsModal] = useState(false);
@@ -401,6 +403,13 @@ export default function Home() {
           }
           setShowNewRaffleModal(true);
         }}
+        onOpenRaffleManager={() => {
+          if (!isAdmin) {
+            setShowAuthModal(true);
+            return;
+          }
+          setShowRaffleManagerModal(true);
+        }}
         onOpenSellerManager={() => {
           if (!isAdmin) {
             setShowAuthModal(true);
@@ -414,7 +423,7 @@ export default function Home() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-20 md:pb-8">
+      <main className="flex-1 pb-20 md:pb-8 w-full max-w-full overflow-x-hidden">
         {/* Tab 1: Grade & Bilhetes (Interactive Visual Cartaz) */}
         {activeTab === 'grid' && (
           <div className="animate-fade-in">
@@ -630,6 +639,27 @@ export default function Home() {
           onLogout={handleLogout}
           onSwitchUser={() => setShowAuthModal(true)}
           onOpenSellerManager={() => setShowSellerModal(true)}
+          onOpenRaffleManager={() => setShowRaffleManagerModal(true)}
+        />
+      )}
+
+      {/* Raffle List & Cleanup Manager Modal (Gerenciar & Apagar Rifas) */}
+      {showRaffleManagerModal && (
+        <RaffleManagerModal
+          isOpen={showRaffleManagerModal}
+          onClose={() => setShowRaffleManagerModal(false)}
+          raffles={data.raffles}
+          activeRaffleId={activeRaffle.id}
+          onSelectRaffle={handleSelectRaffle}
+          onDeleteRaffle={handleDeleteRaffle}
+          onOpenNewRaffle={() => {
+            setShowRaffleManagerModal(false);
+            setShowNewRaffleModal(true);
+          }}
+          onOpenEditRaffle={() => {
+            setShowRaffleManagerModal(false);
+            setShowEditRaffleModal(true);
+          }}
         />
       )}
 

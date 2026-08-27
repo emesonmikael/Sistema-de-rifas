@@ -529,10 +529,51 @@ export function setActiveRaffleId(raffleId: string): void {
 
 export function deleteRaffle(raffleId: string): boolean {
   const current = getStoredData();
-  if (current.raffles.length <= 1) {
-    return false; // Prevent deleting the only remaining raffle
-  }
   const initialLen = current.raffles.length;
+  
+  if (initialLen <= 1) {
+    // If it's the only raffle, wipe and replace with a fresh empty raffle
+    const cleanNumbers: Record<number, RaffleNumber> = {};
+    for (let i = 1; i <= 50; i++) {
+      cleanNumbers[i] = { number: i, status: 'available' };
+    }
+    const freshRaffle: Raffle = {
+      id: `raffle-${Date.now()}`,
+      title: 'Nova Rifa Solidária',
+      category: 'Ação Solidária',
+      causeDescription: 'Em prol da comunidade',
+      chapelOrOrgName: 'Comunidade Paroquial',
+      location: 'Comunidade',
+      prizes: [
+        {
+          order: 1,
+          title: '1º PRÊMIO',
+          description: 'Prêmio Principal',
+          estimatedValue: 500,
+          donorName: 'Doação de Benfeitores',
+          details: 'Prêmio oficial',
+        },
+      ],
+      pricePerNumber: 10,
+      totalNumbers: 50,
+      pixKey: 'paroquia.rifa@gmail.com',
+      pixKeyType: 'email',
+      pixReceiverName: 'Coordenação da Rifa',
+      pixCity: 'Comunidade',
+      status: 'active',
+      numbers: cleanNumbers,
+      winners: [],
+      expenses: [],
+      reservationTimeoutHours: 24,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    current.raffles = [freshRaffle];
+    current.activeRaffleId = freshRaffle.id;
+    saveStoredData(current);
+    return true;
+  }
+
   current.raffles = current.raffles.filter((r) => r.id !== raffleId);
   if (current.activeRaffleId === raffleId) {
     current.activeRaffleId = current.raffles[0].id;
