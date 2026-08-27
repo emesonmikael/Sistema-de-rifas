@@ -356,12 +356,18 @@ export function recordSellerLogin(sellerId: string): void {
   }
 }
 
+export function logoutSeller(): void {
+  const current = getStoredData();
+  current.currentSellerId = undefined;
+  saveStoredData(current);
+}
+
 export function deleteSeller(sellerId: string): boolean {
   const current = getStoredData();
   const initialLen = current.sellers.length;
   current.sellers = current.sellers.filter((s) => s.id !== sellerId);
   if (current.currentSellerId === sellerId) {
-    current.currentSellerId = current.sellers[0]?.id;
+    current.currentSellerId = undefined;
   }
   saveStoredData(current);
   return current.sellers.length < initialLen;

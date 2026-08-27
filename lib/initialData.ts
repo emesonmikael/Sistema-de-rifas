@@ -169,5 +169,5 @@ export const INITIAL_SYSTEM_DATA: SystemData = {
   raffles: [INITIAL_RAFFLE],
   activeRaffleId: 'raffle-sao-jose-operario',
   sellers: INITIAL_SELLERS,
-  currentSellerId: 'seller-1',
+  currentSellerId: undefined,
 };

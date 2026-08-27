@@ -14,6 +14,7 @@ import {
   deleteSeller,
   updateSellerPin,
   recordSellerLogin,
+  logoutSeller,
   recordWinner,
   addExpense,
   deleteExpense,
@@ -56,7 +57,19 @@ export default function Home() {
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
 
   // Auth & Session State
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = localStorage.getItem('rifa_pix_system_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return !parsed.currentSellerId;
+      }
+    } catch {
+      // fallback
+    }
+    return true;
+  });
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(false);
 
@@ -123,9 +136,9 @@ export default function Home() {
   // Current logged user
   const currentSellerId = data?.currentSellerId;
   const currentUser = useMemo(() => {
-    if (isGuestMode) return null;
+    if (isGuestMode || !currentSellerId) return null;
     const found = sellers.find((s) => s.id === currentSellerId);
-    return found || sellers[0] || null;
+    return found || null;
   }, [sellers, currentSellerId, isGuestMode]);
 
   const isAdmin = currentUser?.role === 'admin';
@@ -286,8 +299,11 @@ export default function Home() {
   };
 
   const handleLogout = () => {
+    logoutSeller();
     setIsGuestMode(true);
-    showToast('Sessão encerrada. Modo visitante ativado.', 'info');
+    setShowProfileModal(false);
+    setShowAuthModal(true);
+    showToast('Sessão encerrada. Escolha um usuário para entrar.', 'info');
   };
 
   const handleUpdatePin = (newPin: string) => {
@@ -367,7 +383,8 @@ export default function Home() {
     if (confirm('Deseja restaurar os dados de exemplo da Rifa de São José Operário?')) {
       resetToInitialDemoData();
       sounds.playSuccess();
-      showToast('Dados restaurados com sucesso para a Rifa de São José Operário!');
+      setShowAuthModal(true);
+      showToast('Dados restaurados com sucesso!');
     }
   };
 
@@ -481,18 +498,49 @@ export default function Home() {
         {/* Tab 2: Balcão do Vendedor (Fast Sales Terminal & Personal Stats) */}
         {activeTab === 'seller' && (
           <div className="animate-fade-in">
-            <SellerDesk
-              raffle={activeRaffle}
-              sellers={sellers}
-              currentSellerId={currentUser?.id || sellers[0]?.id}
-              isAdmin={isAdmin}
-              onSelectSeller={handleSelectSeller}
-              onConfirmPayment={handleConfirmPayment}
-              onReleaseNumber={handleReleaseNumber}
-              onRegisterSale={handleRegisterSale}
-              onOpenReceipt={(numData) => setShowReceiptModal(numData)}
-              onOpenSellerManager={() => setShowSellerModal(true)}
-            />
+            {!currentUser ? (
+              <div className="w-full max-w-xl mx-auto px-4 py-12 text-center">
+                <div className="bg-white p-6 sm:p-8 rounded-3xl border-2 border-[#eee4db] shadow-lg space-y-4 text-[#2d2a26]">
+                  <div className="w-14 h-14 rounded-2xl bg-[#f0f4ee] border border-[#d1dec8] text-[#5A5A40] flex items-center justify-center mx-auto">
+                    <UserCheck className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-xl font-bold font-serif">Acesso ao Balcão do Vendedor</h3>
+                  <p className="text-xs sm:text-sm text-[#7c736a] leading-relaxed">
+                    Identifique-se com seu PIN de vendedor ou coordenador para registrar vendas rápidas, confirmar pagamentos e emitir comprovantes.
+                  </p>
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAuthModal(true)}
+                      className="px-6 py-3 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>Fazer Login do Vendedor</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('grid')}
+                      className="px-4 py-3 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] font-bold text-xs rounded-xl border border-[#eee4db] active:scale-95"
+                    >
+                      Ver Grade de Bilhetes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <SellerDesk
+                raffle={activeRaffle}
+                sellers={sellers}
+                currentSellerId={currentUser.id}
+                isAdmin={isAdmin}
+                onSelectSeller={handleSelectSeller}
+                onConfirmPayment={handleConfirmPayment}
+                onReleaseNumber={handleReleaseNumber}
+                onRegisterSale={handleRegisterSale}
+                onOpenReceipt={(numData) => setShowReceiptModal(numData)}
+                onOpenSellerManager={() => setShowSellerModal(true)}
+              />
+            )}
           </div>
         )}
 
