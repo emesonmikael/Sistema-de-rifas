@@ -427,9 +427,12 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                 {generateGoogleAppsScriptCode()}
               </pre>
 
-              <p className="text-[11px] text-[#7c736a]">
-                💡 Esse código agora suporta tanto <strong>doPost</strong> (gravação das cotas e relatórios) quanto <strong>doGet</strong> (busca das cotas salvas ao recarregar a página).
-              </p>
+              <div className="p-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-[11px] text-[#423d38] space-y-1">
+                <span className="font-bold text-[#1e7e34] block">✨ Ciclo Completo de Sincronização Suportado:</span>
+                <p>• <strong>Salvar (POST):</strong> Gravação automática ou manual das cotas, nomes, telefones, vendedores e resumo financeiro.</p>
+                <p>• <strong>Carregar (GET):</strong> Leitura bi-direcional multi-abas com descoberta automática de vendedores e números.</p>
+                <p>• <strong>Apagar (DELETE_RAFFLE):</strong> Ao apagar uma rifa no sistema, o comando exclui a aba correspondente na sua planilha Google Sheets.</p>
+              </div>
             </div>
           )}
         </div>

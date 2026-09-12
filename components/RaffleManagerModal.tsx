@@ -253,6 +253,9 @@ export const RaffleManagerModal: React.FC<RaffleManagerModalProps> = ({
               <p className="text-xs text-[#7c736a] pt-1">
                 Todas as cotas, reservas e despesas vinculadas a esta rifa serão removidas do sistema.
               </p>
+              <p className="text-xs text-[#1e7e34] bg-[#f0f9f1] p-2 rounded-xl border border-[#c8e6c9] font-medium text-left">
+                ✓ Se a planilha Google Sheets estiver conectada, a aba correspondente a esta rifa também será apagada automaticamente.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-2">

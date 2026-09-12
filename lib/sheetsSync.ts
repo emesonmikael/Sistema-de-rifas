@@ -1,6 +1,6 @@
 import { Raffle, SystemData, RaffleNumber, Seller } from '@/types/raffle';
 import { DEFAULT_SHEETS_WEBHOOK_URL } from './sheetsConfig';
-import { saveStoredData, getStoredData, createNewRaffle, setActiveRaffleId } from './storage';
+import { saveStoredData, getStoredData, createNewRaffle, setActiveRaffleId, getDeletedRaffleTitles } from './storage';
 
 export interface GoogleSheetsConfig {
   webhookUrl: string; // The Google Apps Script Web App URL
@@ -148,9 +148,22 @@ export async function fetchRaffleFromGoogleSheets(
     }
 
     if (importedRaffles.length > 0) {
+      const deletedTitles = getDeletedRaffleTitles();
+
       for (const rData of importedRaffles) {
         const raffleTitle = rData.title;
         const cotasArray = rData.cotas;
+
+        // If this raffle was explicitly deleted by user, do not recreate it
+        const cleanTitleLower = raffleTitle.toLowerCase().trim();
+        if (deletedTitles.includes(cleanTitleLower)) {
+          const existsInLocal = current.raffles.some(
+            (r) => r.title.toLowerCase().trim() === cleanTitleLower
+          );
+          if (!existsInLocal) {
+            continue;
+          }
+        }
 
         // Try to match existing raffle by title or ID
         let targetIndex = current.raffles.findIndex(
@@ -492,7 +505,62 @@ export async function syncRaffleToGoogleSheets(
 }
 
 /**
- * Generates the Google Apps Script code with bi-directional capabilities (Cotas + Resumo + Equipe de Vendedores)
+ * Deletes a raffle / campaign tab from the Google Sheets spreadsheet (POST action: DELETE_RAFFLE)
+ */
+export async function deleteRaffleFromGoogleSheets(
+  raffleTitle: string,
+  raffleId?: string,
+  customUrl?: string
+): Promise<{ success: boolean; message: string }> {
+  const config = getSheetsConfig();
+  const url = customUrl || config.webhookUrl || DEFAULT_SHEETS_WEBHOOK_URL;
+
+  if (!url || !url.startsWith('http')) {
+    return {
+      success: false,
+      message: 'URL da Planilha do Google Apps Script não foi configurada.',
+    };
+  }
+
+  try {
+    const payload = {
+      action: 'DELETE_RAFFLE',
+      timestamp: new Date().toISOString(),
+      raffleTitle: raffleTitle.trim(),
+      raffleId: raffleId,
+      sheetName: `Bilhetes - ${raffleTitle.trim()}`,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok || response.type === 'opaque') {
+      return {
+        success: true,
+        message: `Aba da campanha "${raffleTitle}" apagada da planilha Google Sheets com sucesso!`,
+      };
+    } else {
+      return {
+        success: false,
+        message: `Google Sheets respondeu com status: ${response.status}`,
+      };
+    }
+  } catch (error: any) {
+    console.error('Failed to delete raffle from Google Sheets:', error);
+    return {
+      success: true,
+      message: `Comando de exclusão enviado para a planilha Google Sheets!`,
+    };
+  }
+}
+
+/**
+ * Generates the Google Apps Script code with bi-directional capabilities (Cotas + Resumo + Equipe de Vendedores + Exclusão de Campanhas)
  */
 export function generateGoogleAppsScriptCode(): string {
   return `/**
@@ -502,6 +570,7 @@ export function generateGoogleAppsScriptCode(): string {
  * SUPORTA:
  * ✅ Gravar e Atualizar Cotas e Bilhetes (POST)
  * ✅ Gravar e Atualizar Equipe de Vendedores & Metas (POST)
+ * ✅ Apagar Aba da Rifa na Planilha quando excluída no Sistema (POST DELETE_RAFFLE)
  * ✅ Buscar e Restaurar Dados e Vendedores ao abrir o site em qualquer celular/PC (GET)
  * ✅ Múltiplas Rifas em abas separadas
  * 
@@ -516,16 +585,98 @@ export function generateGoogleAppsScriptCode(): string {
  * =========================================================================
  */
 
-// 1. RECEBER DADOS DO SITE E GRAVAR NA PLANILHA (POST)
+// 1. RECEBER DADOS DO SITE E GRAVAR OU APAGAR NA PLANILHA (POST)
 function doPost(e) {
   try {
     var rawData = e.postData.contents;
     var data = JSON.parse(rawData);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // 1. Aba Principal de Cotas da Rifa
-    var sheetName = "Bilhetes - " + (data.rifa ? data.rifa.titulo.substring(0, 20) : "Rifa");
+    // =========================================================================
+    // AÇÃO: APAGAR CAMPANHA / RIFA DA PLANILHA (DELETE_RAFFLE)
+    // =========================================================================
+    if (data.action === "DELETE_RAFFLE") {
+      var targetTitle = (data.raffleTitle || "").toLowerCase().trim();
+      var targetSheetName = (data.sheetName || "").toLowerCase().trim();
+      var deletedCount = 0;
+
+      // Garantir que a planilha nunca fique sem abas
+      if (ss.getSheets().length <= 1) {
+        var fallback = ss.getSheetByName("Resumo Geral");
+        if (!fallback) {
+          ss.insertSheet("Resumo Geral", 0);
+        }
+      }
+
+      var sheets = ss.getSheets();
+      for (var s = sheets.length - 1; s >= 0; s--) {
+        var sh = sheets[s];
+        var sName = sh.getName();
+        var sNameLower = sName.toLowerCase().trim();
+
+        // Não apagar abas protegidas do sistema
+        if (sName === "Resumo Geral" || sName === "Equipe & Vendedores") {
+          continue;
+        }
+
+        var isMatch = false;
+        if (targetSheetName && sNameLower === targetSheetName) isMatch = true;
+        if (targetTitle && sNameLower === targetTitle) isMatch = true;
+        if (targetTitle && sNameLower === ("bilhetes - " + targetTitle).substring(0, 30)) isMatch = true;
+        if (targetTitle && sNameLower.indexOf(targetTitle) !== -1) isMatch = true;
+        if (targetTitle && targetTitle.indexOf(sNameLower.replace(/^bilhetes\s*-\s*/i, "")) !== -1) isMatch = true;
+
+        if (isMatch) {
+          if (ss.getSheets().length <= 1) {
+            ss.insertSheet("Resumo Geral", 0);
+          }
+          ss.deleteSheet(sh);
+          deletedCount++;
+        }
+      }
+
+      // Atualizar Resumo Geral se a rifa apagada estava lá
+      var sumSheet = ss.getSheetByName("Resumo Geral");
+      if (sumSheet && sumSheet.getLastRow() >= 2) {
+        var currTitle = String(sumSheet.getRange(2, 2).getValue() || "").toLowerCase();
+        if (targetTitle && currTitle.indexOf(targetTitle) !== -1) {
+          sumSheet.getRange(2, 2).setValue("(Nenhuma rifa ativa)");
+          sumSheet.getRange("B6:B9").setValues([[0], [0], [0], [0]]);
+        }
+      }
+
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          result: "success",
+          action: "DELETE_RAFFLE",
+          deletedCount: deletedCount,
+          message: "Aba da rifa excluída com sucesso da planilha Google Sheets!"
+        })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =========================================================================
+    // AÇÃO PADRÃO: GRAVAR OU ATUALIZAR COTAS DA RIFA
+    // =========================================================================
+    var sheetTitle = (data.rifa ? data.rifa.titulo : "Rifa").substring(0, 25);
+    var sheetName = "Bilhetes - " + sheetTitle;
     var sheet = ss.getSheetByName(sheetName);
+
+    // Se não encontrou pelo nome exato, tentar reaproveitar aba existente com mesmo título
+    if (!sheet) {
+      var allS = ss.getSheets();
+      for (var k = 0; k < allS.length; k++) {
+        var existingName = allS[k].getName();
+        if (existingName !== "Resumo Geral" && existingName !== "Equipe & Vendedores") {
+          if (existingName.toLowerCase().indexOf(sheetTitle.toLowerCase()) !== -1 ||
+              sheetTitle.toLowerCase().indexOf(existingName.toLowerCase().replace(/^bilhetes\s*-\s*/i, "")) !== -1) {
+            sheet = allS[k];
+            break;
+          }
+        }
+      }
+    }
+
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
       var headers = [

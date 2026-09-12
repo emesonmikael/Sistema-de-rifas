@@ -461,6 +461,7 @@ export function createNewRaffle(
     updatedAt: new Date().toISOString(),
   };
 
+  unrecordDeletedRaffle(data.title);
   current.raffles.push(newRaffle);
   current.activeRaffleId = id;
   saveStoredData(current);
@@ -533,9 +534,52 @@ export function setActiveRaffleId(raffleId: string): void {
   }
 }
 
+export const DELETED_RAFFLES_KEY = 'raffle_system_deleted_titles_v1';
+
+export function getDeletedRaffleTitles(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(DELETED_RAFFLES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function recordDeletedRaffle(title: string): void {
+  if (typeof window === 'undefined' || !title) return;
+  try {
+    const list = getDeletedRaffleTitles();
+    const clean = title.toLowerCase().trim();
+    if (!list.includes(clean)) {
+      list.push(clean);
+      localStorage.setItem(DELETED_RAFFLES_KEY, JSON.stringify(list));
+    }
+  } catch (e) {
+    console.error('Error recording deleted raffle title', e);
+  }
+}
+
+export function unrecordDeletedRaffle(title: string): void {
+  if (typeof window === 'undefined' || !title) return;
+  try {
+    const list = getDeletedRaffleTitles();
+    const clean = title.toLowerCase().trim();
+    const filtered = list.filter((t) => t !== clean);
+    localStorage.setItem(DELETED_RAFFLES_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.error('Error unrecording deleted raffle title', e);
+  }
+}
+
 export function deleteRaffle(raffleId: string): boolean {
   const current = getStoredData();
   const initialLen = current.raffles.length;
+  const targetRaffle = current.raffles.find((r) => r.id === raffleId);
+  
+  if (targetRaffle) {
+    recordDeletedRaffle(targetRaffle.title);
+  }
   
   if (initialLen <= 1) {
     // If it's the only raffle, wipe and replace with a fresh empty raffle

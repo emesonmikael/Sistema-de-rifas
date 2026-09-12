@@ -5,6 +5,7 @@ import {
   useRaffleSystemData,
   getActiveRaffle,
   saveStoredData,
+  getStoredData,
   reserveNumbersInRaffle,
   confirmNumberPayment,
   confirmBulkPayments,
@@ -46,6 +47,7 @@ import { RaffleManagerModal } from '@/components/RaffleManagerModal';
 import {
   syncRaffleToGoogleSheets,
   fetchRaffleFromGoogleSheets,
+  deleteRaffleFromGoogleSheets,
   getSheetsConfig,
 } from '@/lib/sheetsSync';
 import { sounds } from '@/lib/sound';
@@ -85,13 +87,13 @@ export default function Home() {
   const [showSheetsModal, setShowSheetsModal] = useState(false);
 
   // Toast notifications
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
 
-  const showToast = useCallback((text: string, type: 'success' | 'info' = 'success') => {
+  const showToast = useCallback((text: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => {
       setToastMessage(null);
-    }, 4000);
+    }, 4500);
   }, []);
 
   const activeRaffle = useMemo(() => {
@@ -120,12 +122,27 @@ export default function Home() {
   }, []);
 
   // Helper to trigger background Google Sheets sync if autoSync is active
-  const triggerSheetsAutoSync = useCallback((raffleToSync: Raffle) => {
+  const triggerSheetsAutoSync = useCallback((raffleToSync?: Raffle | string) => {
     const config = getSheetsConfig();
     if (config.autoSync && config.webhookUrl) {
-      syncRaffleToGoogleSheets(raffleToSync, 'FULL_SYNC').catch((err) =>
-        console.error('Background sheets sync error:', err)
-      );
+      const freshData = getStoredData();
+      let targetRaffle: Raffle | undefined;
+
+      if (typeof raffleToSync === 'string') {
+        targetRaffle = freshData.raffles.find((r) => r.id === raffleToSync);
+      } else if (raffleToSync && typeof raffleToSync === 'object') {
+        targetRaffle = freshData.raffles.find((r) => r.id === raffleToSync.id);
+      }
+
+      if (!targetRaffle) {
+        targetRaffle = freshData.raffles.find((r) => r.id === freshData.activeRaffleId) || freshData.raffles[0];
+      }
+
+      if (targetRaffle) {
+        syncRaffleToGoogleSheets(targetRaffle, 'FULL_SYNC').catch((err) =>
+          console.error('Background sheets sync error:', err)
+        );
+      }
     }
   }, []);
 
@@ -371,10 +388,25 @@ export default function Home() {
   };
 
   // Delete raffle (for admins)
-  const handleDeleteRaffle = (raffleId: string) => {
+  const handleDeleteRaffle = async (raffleId: string) => {
+    const raffleToDelete = data.raffles.find((r) => r.id === raffleId);
+    const raffleTitle = raffleToDelete?.title || '';
+
     const success = deleteRaffle(raffleId);
     if (success) {
-      showToast('Rifa excluída com sucesso.', 'info');
+      showToast(`Rifa "${raffleTitle || 'selecionada'}" excluída do sistema.`, 'info');
+
+      // Also trigger deletion on connected Google Sheets if webhook is configured
+      const config = getSheetsConfig();
+      if (config.webhookUrl && raffleTitle) {
+        showToast(`Removendo aba "${raffleTitle}" da planilha Google Sheets...`, 'info');
+        const sheetRes = await deleteRaffleFromGoogleSheets(raffleTitle, raffleId);
+        if (sheetRes.success) {
+          showToast(sheetRes.message, 'success');
+        } else {
+          showToast(sheetRes.message, 'error');
+        }
+      }
     }
   };
 
@@ -809,6 +841,26 @@ export default function Home() {
           Sistema de Rifas Beneficentes com Autenticação de Vendedores e Administração Integrada
         </p>
       </footer>
+
+      {/* Floating System Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-100 max-w-sm w-full animate-slide-up pointer-events-none px-4 sm:px-0">
+          <div
+            className={`p-4 rounded-2xl shadow-2xl border flex items-center gap-3 backdrop-blur-md pointer-events-auto ${
+              toastMessage.type === 'success'
+                ? 'bg-[#e8f5e9]/95 text-[#1e7e34] border-[#a5d6a7]'
+                : toastMessage.type === 'error'
+                ? 'bg-[#ffebee]/95 text-[#c62828] border-[#ef9a9a]'
+                : 'bg-[#f8f5f0]/95 text-[#423d38] border-[#d7ccc8]'
+            }`}
+          >
+            {toastMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1e7e34]" />}
+            {toastMessage.type === 'error' && <ShieldAlert className="w-5 h-5 shrink-0 text-[#c62828]" />}
+            {toastMessage.type === 'info' && <RefreshCw className="w-5 h-5 shrink-0 text-[#5A5A40]" />}
+            <span className="text-xs font-bold leading-tight">{toastMessage.text}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
