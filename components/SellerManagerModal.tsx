@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Seller } from '@/types/raffle';
-import { X, UserPlus, Trash2, Edit2, UserCheck } from 'lucide-react';
+import { X, UserPlus, Trash2, Edit2, UserCheck, ShieldAlert } from 'lucide-react';
 import { sounds } from '@/lib/sound';
 
 interface SellerManagerModalProps {
@@ -10,6 +10,7 @@ interface SellerManagerModalProps {
   onClose: () => void;
   onSaveSeller: (seller: Partial<Seller> & { name: string; phone: string }) => void;
   onDeleteSeller: (sellerId: string) => void;
+  onClearSimulationSellers?: () => void;
 }
 
 export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
@@ -17,6 +18,7 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
   onClose,
   onSaveSeller,
   onDeleteSeller,
+  onClearSimulationSellers,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -222,14 +224,42 @@ export const SellerManagerModal: React.FC<SellerManagerModalProps> = ({
               </div>
             </form>
           ) : (
-            <button
-              type="button"
-              onClick={() => setIsAdding(true)}
-              className="w-full py-3 bg-[#fdf1eb] hover:bg-[#fae4da] text-[#D48166] border border-[#f0c3b4] rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors active:scale-95"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Cadastrar Novo Vendedor</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setIsAdding(true)}
+                className="w-full py-3 bg-[#fdf1eb] hover:bg-[#fae4da] text-[#D48166] border border-[#f0c3b4] rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors active:scale-95"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Cadastrar Novo Vendedor / Promotor</span>
+              </button>
+
+              {onClearSimulationSellers &&
+                sellers.some(
+                  (s) =>
+                    ['seller-1', 'seller-2', 'seller-3', 'seller-4'].includes(s.id) ||
+                    s.name.includes('(Pastoral)') ||
+                    s.name.includes('(Juventude)') ||
+                    s.name.includes('(Comunidade)')
+                ) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          'Deseja remover todos os vendedores fictícios de simulação (Pastoral, Juventude, etc.) da lista?'
+                        )
+                      ) {
+                        onClearSimulationSellers();
+                      }
+                    }}
+                    className="w-full py-2 bg-[#fdf5f5] hover:bg-[#fde8e8] text-[#c93b2b] border border-[#f5c6cb] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remover Vendedores Fictícios de Simulação</span>
+                  </button>
+                )}
+            </div>
           )}
 
           {/* List of Sellers */}

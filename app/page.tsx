@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useSyncExternalStore } from 'react';
 import {
   useRaffleSystemData,
   getActiveRaffle,
@@ -25,6 +25,7 @@ import {
   resetToInitialDemoData,
   setActiveRaffleId,
   deleteRaffle,
+  clearSimulationSellers,
 } from '@/lib/storage';
 import { Raffle, Seller, RaffleNumber, Winner, Expense } from '@/types/raffle';
 import { Navbar } from '@/components/Navbar';
@@ -53,27 +54,57 @@ import {
 import { sounds } from '@/lib/sound';
 import { CheckCircle2, ShieldAlert, Lock, ArrowRight, UserCheck, RefreshCw, FileSpreadsheet, Gift } from 'lucide-react';
 
+const emptySubscribe = () => () => {};
+
+function useIsClientMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
+
+function useNeedsInitialAuth() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => {
+      try {
+        const raw = localStorage.getItem('rifa_pix_system_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return !parsed.currentSellerId;
+        }
+        return true;
+      } catch {
+        return true;
+      }
+    },
+    () => false
+  );
+}
+
 export default function Home() {
   const data = useRaffleSystemData();
+  const isClientMounted = useIsClientMounted();
+  const needsInitialAuth = useNeedsInitialAuth();
+
   const [activeTab, setActiveTab] = useState<'grid' | 'seller' | 'finance' | 'reports' | 'draw'>('grid');
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
 
   // Auth & Session State
-  const [showAuthModal, setShowAuthModal] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const raw = localStorage.getItem('rifa_pix_system_v1');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return !parsed.currentSellerId;
-      }
-    } catch {
-      // fallback
-    }
-    return true;
-  });
+  const [authModalOverride, setAuthModalOverride] = useState<boolean | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(false);
+
+  const showAuthModal =
+    isClientMounted &&
+    (authModalOverride !== null
+      ? authModalOverride
+      : !isGuestMode && needsInitialAuth && !data?.currentSellerId);
+
+  const setShowAuthModal = useCallback((open: boolean) => {
+    setAuthModalOverride(open);
+  }, []);
 
   // Modals state
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -349,10 +380,69 @@ export default function Home() {
   };
 
   // Create new raffle
-  const handleCreateRaffle = (newRaffle: Partial<Raffle> & { title: string; pricePerNumber: number; totalNumbers: number; pixKey: string }) => {
+  const handleCreateRaffle = (
+    newRaffle: Partial<Raffle> & {
+      title: string;
+      pricePerNumber: number;
+      totalNumbers: number;
+      pixKey: string;
+      initialCoordinator?: {
+        name: string;
+        phone: string;
+        email?: string;
+        pixKey?: string;
+        pin?: string;
+        role: 'admin' | 'seller';
+        targetNumbers?: number;
+        clearDemoSellers?: boolean;
+      };
+    }
+  ) => {
+    // Process initial coordinator or clear simulation sellers if requested
+    if (newRaffle.initialCoordinator) {
+      const coord = newRaffle.initialCoordinator;
+      if (coord.clearDemoSellers) {
+        clearSimulationSellers();
+      }
+
+      if (coord.name && coord.name.trim()) {
+        const stored = getStoredData();
+        const existing = stored.sellers.find(
+          (s) => s.name.toLowerCase().trim() === coord.name.toLowerCase().trim()
+        );
+
+        let sellerId = existing?.id;
+        if (existing) {
+          addOrUpdateSeller({
+            ...existing,
+            phone: coord.phone || existing.phone,
+            role: coord.role || existing.role,
+            pin: coord.pin || existing.pin || '1234',
+            pixKey: coord.pixKey || existing.pixKey,
+            targetNumbers: coord.targetNumbers || existing.targetNumbers || 25,
+          });
+        } else {
+          const added = addOrUpdateSeller({
+            name: coord.name.trim(),
+            phone: coord.phone.trim() || '(88) 99999-9999',
+            email: coord.email?.trim() || undefined,
+            pixKey: coord.pixKey?.trim() || undefined,
+            pin: coord.pin?.trim() || '1234',
+            role: coord.role || 'admin',
+            targetNumbers: coord.targetNumbers || 25,
+          });
+          sellerId = added.id;
+        }
+
+        if (sellerId) {
+          handleSelectSeller(sellerId);
+        }
+      }
+    }
+
     const created = createNewRaffle(newRaffle);
     setShowNewRaffleModal(false);
-    showToast(`Nova rifa "${created.title}" criada com sucesso!`);
+    showToast(`Nova rifa "${created.title}" criada com sucesso!`, 'success');
   };
 
   // Update existing raffle
@@ -698,7 +788,7 @@ export default function Home() {
       )}
 
       {/* Auth / Login Modal for Sellers & Admins */}
-      {showAuthModal && (
+      {isClientMounted && showAuthModal && (
         <AuthModal
           sellers={sellers}
           currentUser={currentUser}
@@ -710,7 +800,7 @@ export default function Home() {
       )}
 
       {/* User Profile & Change PIN Modal */}
-      {showProfileModal && currentUser && (
+      {isClientMounted && showProfileModal && currentUser && (
         <UserProfileModal
           currentUser={currentUser}
           isOpen={showProfileModal}
@@ -724,7 +814,7 @@ export default function Home() {
       )}
 
       {/* Raffle List & Cleanup Manager Modal (Gerenciar & Apagar Rifas) */}
-      {showRaffleManagerModal && (
+      {isClientMounted && showRaffleManagerModal && (
         <RaffleManagerModal
           isOpen={showRaffleManagerModal}
           onClose={() => setShowRaffleManagerModal(false)}
@@ -744,7 +834,7 @@ export default function Home() {
       )}
 
       {/* Buyer Checkout Modal */}
-      {showCheckoutModal && (
+      {isClientMounted && showCheckoutModal && (
         <BuyerCheckoutModal
           raffle={activeRaffle}
           selectedNumbers={selectedNumbers}
@@ -757,26 +847,33 @@ export default function Home() {
       )}
 
       {/* Digital Receipt / Ticket Modal */}
-      {showReceiptModal && (
+      {isClientMounted && showReceiptModal && (
         <DigitalReceiptModal
           raffle={activeRaffle}
           numberData={showReceiptModal}
           onClose={() => setShowReceiptModal(null)}
+          onReleaseNumber={handleReleaseNumber}
+          onConfirmPayment={handleConfirmPayment}
+          isSellerOrAdmin={Boolean(currentUser)}
         />
       )}
 
       {/* Seller Manager Modal (Equipe) */}
-      {showSellerModal && (
+      {isClientMounted && showSellerModal && (
         <SellerManagerModal
           sellers={sellers}
           onClose={() => setShowSellerModal(false)}
           onSaveSeller={handleSaveSeller}
           onDeleteSeller={handleDeleteSeller}
+          onClearSimulationSellers={() => {
+            const count = clearSimulationSellers();
+            showToast(`${count} vendedores de simulação removidos com sucesso!`, 'info');
+          }}
         />
       )}
 
       {/* New Raffle Creation Modal (Iniciar Nova Nota) */}
-      {showNewRaffleModal && (
+      {isClientMounted && showNewRaffleModal && (
         <RaffleSettingsModal
           isNew={true}
           onClose={() => setShowNewRaffleModal(false)}
@@ -785,7 +882,7 @@ export default function Home() {
       )}
 
       {/* Edit Raffle Modal (Editar Nota & Prêmios da Rifa Atual) */}
-      {showEditRaffleModal && (
+      {isClientMounted && showEditRaffleModal && (
         <RaffleSettingsModal
           raffle={activeRaffle}
           isNew={false}
@@ -795,7 +892,7 @@ export default function Home() {
       )}
 
       {/* Raffle Details & Regulation Modal */}
-      {showDetailsModal && (
+      {isClientMounted && showDetailsModal && (
         <RaffleDetailsModal
           raffle={activeRaffle}
           onClose={() => setShowDetailsModal(false)}
@@ -811,7 +908,7 @@ export default function Home() {
       )}
 
       {/* Expand Numbers Modal (Aumentar Quantidade de Cotas da Rifa) */}
-      {showExpandNumbersModal && activeRaffle && (
+      {isClientMounted && showExpandNumbersModal && activeRaffle && (
         <ExpandNumbersModal
           raffle={activeRaffle}
           isOpen={showExpandNumbersModal}
@@ -821,7 +918,7 @@ export default function Home() {
       )}
 
       {/* Google Sheets Sync Modal */}
-      {showSheetsModal && activeRaffle && (
+      {isClientMounted && showSheetsModal && activeRaffle && (
         <GoogleSheetsSyncModal
           raffle={activeRaffle}
           isOpen={showSheetsModal}

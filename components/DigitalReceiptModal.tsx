@@ -3,20 +3,28 @@
 import React from 'react';
 import { Raffle, RaffleNumber } from '@/types/raffle';
 import { formatCurrency, generateWhatsAppLink } from '@/lib/pix';
-import { X, Send, Printer, Award } from 'lucide-react';
+import { X, Send, Printer, Award, RotateCcw, CheckCircle2, Clock } from 'lucide-react';
+import { sounds } from '@/lib/sound';
 
 interface DigitalReceiptModalProps {
   raffle: Raffle;
   numberData: RaffleNumber;
   onClose: () => void;
+  onReleaseNumber?: (number: number) => void;
+  onConfirmPayment?: (number: number) => void;
+  isSellerOrAdmin?: boolean;
 }
 
 export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
   raffle,
   numberData,
   onClose,
+  onReleaseNumber,
+  onConfirmPayment,
+  isSellerOrAdmin,
 }) => {
   const isPaid = numberData.status === 'paid';
+  const isReserved = numberData.status === 'reserved';
   const numFormatted = numberData.number.toString().padStart(2, '0');
 
   const handleShareWhatsApp = () => {
@@ -125,6 +133,69 @@ export const DigitalReceiptModal: React.FC<DigitalReceiptModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Reservation Action Banner if number is in reserved status */}
+          {isReserved && (
+            <div className="p-3.5 sm:p-4 bg-[#fdf1eb] border-2 border-[#f0c3b4] rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-black text-[#b35c43] uppercase tracking-wide">
+                  <Clock className="w-4 h-4" />
+                  <span>Reserva Pendente de Pagamento</span>
+                </div>
+                <span className="px-2 py-0.5 bg-[#D48166] text-white rounded-md text-[10px] font-black uppercase">
+                  Aguardando PIX
+                </span>
+              </div>
+
+              <p className="text-xs text-[#7c736a] leading-relaxed">
+                Caso o comprador <strong>{numberData.buyerName || 'participante'}</strong> não tenha efetuado o pagamento via PIX ou tenha desistido, disponibilize este número de volta na grade para que outros compradores possam escolher.
+              </p>
+
+              <div className="pt-1 flex flex-col sm:flex-row gap-2">
+                {onReleaseNumber && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          `Deseja disponibilizar o número [ ${numFormatted} ] novamente para venda?\n\nA reserva de ${numberData.buyerName || 'comprador'} será cancelada e o número ficará livre na grade imediatamente.`
+                        )
+                      ) {
+                        sounds.playPop();
+                        onReleaseNumber(numberData.number);
+                        onClose();
+                      }
+                    }}
+                    className="flex-1 py-2.5 px-3 bg-white hover:bg-[#fae4da] text-[#b35c43] border-2 border-[#f0c3b4] font-black text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  >
+                    <RotateCcw className="w-4 h-4 text-[#b35c43]" />
+                    <span>Disponibilizar Número na Grade</span>
+                  </button>
+                )}
+
+                {onConfirmPayment && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          `Confirmar o pagamento da cota [ ${numFormatted} ] recebido de ${numberData.buyerName || 'comprador'}?`
+                        )
+                      ) {
+                        sounds.playSuccess();
+                        onConfirmPayment(numberData.number);
+                        onClose();
+                      }
+                    }}
+                    className="py-2.5 px-3 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-[#fdfaf7]" />
+                    <span>Confirmar Pagamento</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="space-y-2 pt-1">

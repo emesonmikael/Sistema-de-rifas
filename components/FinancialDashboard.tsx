@@ -19,6 +19,7 @@ import {
   Send,
   Sparkles,
   UserCheck,
+  RotateCcw,
 } from 'lucide-react';
 
 interface FinancialDashboardProps {
@@ -335,13 +336,34 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                 </button>
 
                 {selectedPendingNums.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleBulkConfirm}
-                    className="px-3 py-1 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-lg shadow-xs transition-colors active:scale-95"
-                  >
-                    Confirmar ({selectedPendingNums.length})
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleBulkConfirm}
+                      className="px-3 py-1 bg-[#5A5A40] hover:bg-[#484832] text-white font-bold text-xs rounded-lg shadow-xs transition-colors active:scale-95"
+                    >
+                      Aprovar ({selectedPendingNums.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Deseja disponibilizar as ${selectedPendingNums.length} cotas selecionadas de volta para venda na grade?\n\nAs reservas não pagas serão canceladas.`
+                          )
+                        ) {
+                          sounds.playPop();
+                          selectedPendingNums.forEach((num) => onReleaseNumber(num));
+                          setSelectedPendingNums([]);
+                        }
+                      }}
+                      className="px-3 py-1 bg-white border border-[#f0c3b4] text-[#b35c43] hover:bg-[#fdf1eb] font-bold text-xs rounded-lg shadow-xs transition-colors active:scale-95 flex items-center gap-1"
+                      title="Disponibilizar cotas selecionadas"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Disponibilizar ({selectedPendingNums.length})</span>
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -410,10 +432,21 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => onReleaseNumber(item.number)}
-                              className="px-2 py-1 text-[#D48166] hover:bg-[#fdf1eb] rounded-lg text-[11px] font-semibold active:scale-95"
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    `Disponibilizar o número [ ${item.number.toString().padStart(2, '0')} ] de volta para a grade?\n\nA reserva de ${item.buyerName || 'comprador'} será cancelada.`
+                                  )
+                                ) {
+                                  sounds.playPop();
+                                  onReleaseNumber(item.number);
+                                }
+                              }}
+                              className="px-2 py-1 text-[#b35c43] hover:bg-[#fdf1eb] border border-[#f0c3b4] rounded-lg text-[11px] font-bold active:scale-95 flex items-center gap-1 transition-colors"
+                              title="Disponibilizar número novamente caso não tenha sido pago"
                             >
-                              Liberar
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Disponibilizar</span>
                             </button>
                           </div>
                         </td>

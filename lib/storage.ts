@@ -373,6 +373,24 @@ export function deleteSeller(sellerId: string): boolean {
   return current.sellers.length < initialLen;
 }
 
+export function clearSimulationSellers(): number {
+  const current = getStoredData();
+  const initialLen = current.sellers.length;
+  const demoIds = new Set(['seller-1', 'seller-2', 'seller-3', 'seller-4']);
+  current.sellers = current.sellers.filter(
+    (s) =>
+      !demoIds.has(s.id) &&
+      !s.name.includes('(Pastoral)') &&
+      !s.name.includes('(Juventude)') &&
+      !s.name.includes('(Comunidade)')
+  );
+  if (!current.sellers.some((s) => s.id === current.currentSellerId)) {
+    current.currentSellerId = current.sellers[0]?.id;
+  }
+  saveStoredData(current);
+  return initialLen - current.sellers.length;
+}
+
 export function recordWinner(raffleId: string, winner: Winner): void {
   const current = getStoredData();
   const raffle = current.raffles.find((r) => r.id === raffleId);

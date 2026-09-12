@@ -17,6 +17,7 @@ import {
   Check,
   Ticket,
   UserPlus,
+  RotateCcw,
 } from 'lucide-react';
 
 interface SellerDeskProps {
@@ -541,14 +542,20 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            if (confirm(`Liberar número ${item.number} para outros compradores?`)) {
+                            if (
+                              confirm(
+                                `Deseja disponibilizar o número [ ${item.number.toString().padStart(2, '0')} ] para novos compradores?\n\nA reserva de ${item.buyerName || 'comprador'} será cancelada caso o pagamento não tenha sido realizado.`
+                              )
+                            ) {
+                              sounds.playPop();
                               onReleaseNumber(item.number);
                             }
                           }}
-                          className="p-2 text-[#b35c43] hover:bg-[#fbe7df] rounded-xl active:scale-95 text-xs font-bold"
-                          title="Cancelar e liberar número"
+                          className="flex items-center gap-1 px-2.5 py-2 text-[#b35c43] bg-white border border-[#f0c3b4] hover:bg-[#fdf1eb] rounded-xl active:scale-95 text-xs font-bold shadow-2xs transition-all"
+                          title="Disponibilizar número novamente caso não tenha sido pago"
                         >
-                          Liberar
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Disponibilizar</span>
                         </button>
                       </>
                     ) : (

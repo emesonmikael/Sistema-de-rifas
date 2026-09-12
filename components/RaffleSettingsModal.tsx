@@ -19,14 +19,35 @@ import {
   Clock,
   ShieldCheck,
   Tag,
+  Users,
+  UserCheck,
 } from 'lucide-react';
 import { sounds } from '@/lib/sound';
+
+export interface InitialCoordinatorData {
+  name: string;
+  phone: string;
+  email?: string;
+  pixKey?: string;
+  pin?: string;
+  role: 'admin' | 'seller';
+  targetNumbers?: number;
+  clearDemoSellers?: boolean;
+}
 
 interface RaffleSettingsModalProps {
   raffle?: Raffle | null;
   isNew?: boolean;
   onClose: () => void;
-  onSave: (data: Partial<Raffle> & { title: string; pricePerNumber: number; totalNumbers: number; pixKey: string }) => void;
+  onSave: (
+    data: Partial<Raffle> & {
+      title: string;
+      pricePerNumber: number;
+      totalNumbers: number;
+      pixKey: string;
+      initialCoordinator?: InitialCoordinatorData;
+    }
+  ) => void;
 }
 
 export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
@@ -35,7 +56,7 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const [tab, setTab] = useState<'info' | 'prizes' | 'pricing' | 'pix_draw'>('info');
+  const [tab, setTab] = useState<'info' | 'prizes' | 'pricing' | 'pix_draw' | 'team'>('info');
 
   // Form states
   const [title, setTitle] = useState(raffle?.title || (isNew ? 'NOVA RIFA BENEFICENTE' : 'RIFA BENEFICENTE'));
@@ -69,6 +90,16 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
   const [reservationTimeoutHours, setReservationTimeoutHours] = useState(
     raffle?.reservationTimeoutHours || 24
   );
+
+  // Initial coordinator / seller state (to avoid fake simulation data)
+  const [coordName, setCoordName] = useState('');
+  const [coordPhone, setCoordPhone] = useState('');
+  const [coordEmail, setCoordEmail] = useState('');
+  const [coordPixKey, setCoordPixKey] = useState('');
+  const [coordPin, setCoordPin] = useState('1234');
+  const [coordRole, setCoordRole] = useState<'admin' | 'seller'>('admin');
+  const [coordTargetNumbers, setCoordTargetNumbers] = useState(25);
+  const [clearDemoSellers, setClearDemoSellers] = useState(true);
 
   // Detailed Prizes
   const [prizes, setPrizes] = useState<Prize[]>(
@@ -153,6 +184,7 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
     }
 
     sounds.playSuccess();
+    const hasCoordinatorInfo = Boolean(coordName.trim() || (isNew && clearDemoSellers));
     onSave({
       title: title.trim(),
       category: category.trim(),
@@ -171,6 +203,18 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
       regulation: regulation.trim(),
       reservationTimeoutHours: Number(reservationTimeoutHours) || 24,
       prizes: validPrizes,
+      initialCoordinator: hasCoordinatorInfo
+        ? {
+            name: coordName.trim() || pixReceiverName.trim() || 'Coordenador Geral',
+            phone: coordPhone.trim() || '(88) 99999-9999',
+            email: coordEmail.trim() || undefined,
+            pixKey: coordPixKey.trim() || pixKey.trim(),
+            pin: coordPin.trim() || '1234',
+            role: coordRole,
+            targetNumbers: Number(coordTargetNumbers) || 25,
+            clearDemoSellers: isNew ? clearDemoSellers : false,
+          }
+        : undefined,
     });
   };
 
@@ -252,6 +296,19 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
             }`}
           >
             4. PIX & Sorteio
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('team')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              tab === 'team'
+                ? 'bg-[#5A5A40] text-white shadow-xs'
+                : 'bg-white text-[#7c736a] border border-[#eee4db] hover:bg-[#f8f5f0]'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-[#D48166]" />
+            <span>5. Coordenador / 1º Vendedor</span>
           </button>
         </div>
 
@@ -727,6 +784,142 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
             </div>
           )}
 
+          {/* TAB 5: INITIAL COORDINATOR & FIRST SELLER (REAL DATA, NO SIMULATION) */}
+          {tab === 'team' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#eee4db] shadow-xs space-y-4">
+                <div className="border-b border-[#eee4db] pb-3">
+                  <h3 className="font-serif font-black text-base text-[#2d2a26] flex items-center gap-2">
+                    <Users className="w-5 h-5 text-[#5A5A40]" />
+                    <span>Coordenador Geral ou 1º Vendedor Oficial</span>
+                  </h3>
+                  <p className="text-xs text-[#7c736a] mt-1">
+                    Cadastre os dados reais da pessoa responsável pela coordenação ou o primeiro promotor oficial desta campanha.
+                  </p>
+                </div>
+
+                {/* Option to clear demo sellers */}
+                <div className="p-3.5 bg-[#f0f4ee] border border-[#d1dec8] rounded-xl flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="clearDemoSellers"
+                    checked={clearDemoSellers}
+                    onChange={(e) => setClearDemoSellers(e.target.checked)}
+                    className="mt-1 w-4 h-4 text-[#5A5A40] rounded border-[#c0cfb8] focus:ring-[#5A5A40]"
+                  />
+                  <label htmlFor="clearDemoSellers" className="text-xs text-[#3d4b3d] leading-snug cursor-pointer">
+                    <strong className="block font-bold">Sem dados de simulação</strong>
+                    Limpar automaticamente os vendedores fictícios de exemplo (Pastoral, Juventude, etc.) e iniciar esta campanha somente com os dados reais informados.
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">
+                      Nome do Coordenador / Vendedor <span className="text-[#D48166]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={coordName}
+                      onChange={(e) => setCoordName(e.target.value)}
+                      placeholder="Ex: Pe. Carlos Mendes ou Maria Ferreira"
+                      className="w-full px-3.5 py-2.5 text-sm bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-bold text-[#2d2a26] focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none"
+                    />
+                    <span className="text-[11px] text-[#7c736a] mt-0.5 block">
+                      Se deixar em branco, usará o titular do PIX ({pixReceiverName || 'Coordenador Geral'})
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">
+                      WhatsApp / Telefone <span className="text-[#D48166]">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={coordPhone}
+                      onChange={(e) => setCoordPhone(e.target.value)}
+                      placeholder="Ex: (88) 99999-9999"
+                      className="w-full px-3.5 py-2.5 text-sm bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-medium text-[#2d2a26] focus:bg-white focus:ring-2 focus:ring-[#5A5A40] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">
+                      Função na Campanha
+                    </label>
+                    <select
+                      value={coordRole}
+                      onChange={(e) => setCoordRole(e.target.value as 'admin' | 'seller')}
+                      className="w-full px-3 py-2 text-xs font-bold bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-[#2d2a26]"
+                    >
+                      <option value="admin">Coordenador Geral (Acesso Total / ADM)</option>
+                      <option value="seller">Vendedor / Promotor</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">
+                      PIN de Acesso (4 dígitos)
+                    </label>
+                    <input
+                      type="text"
+                      value={coordPin}
+                      onChange={(e) => setCoordPin(e.target.value)}
+                      maxLength={6}
+                      placeholder="1234"
+                      className="w-full px-3 py-2 text-sm bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-mono font-bold text-[#5A5A40]"
+                    />
+                    <span className="text-[11px] text-[#7c736a]">Usado para login rápido</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">
+                      Meta Inicial de Cotas
+                    </label>
+                    <input
+                      type="number"
+                      value={coordTargetNumbers}
+                      onChange={(e) => setCoordTargetNumbers(Number(e.target.value))}
+                      min={1}
+                      max={1000}
+                      className="w-full px-3 py-2 text-sm bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-medium text-[#2d2a26]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">
+                      Chave PIX Pessoal (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={coordPixKey}
+                      onChange={(e) => setCoordPixKey(e.target.value)}
+                      placeholder="Chave pessoal (se diferente da rifa)"
+                      className="w-full px-3.5 py-2 text-sm bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-medium text-[#2d2a26]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#423d38] uppercase mb-1">
+                      E-mail (Opcional)
+                    </label>
+                    <input
+                      type="email"
+                      value={coordEmail}
+                      onChange={(e) => setCoordEmail(e.target.value)}
+                      placeholder="contato@exemplo.com"
+                      className="w-full px-3.5 py-2 text-sm bg-[#f8f5f0] border border-[#eee4db] rounded-xl font-medium text-[#2d2a26]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Form Actions */}
           <div className="pt-4 border-t border-[#eee4db] flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs text-[#7c736a]">
@@ -734,7 +927,8 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (tab === 'pix_draw') setTab('pricing');
+                    if (tab === 'team') setTab('pix_draw');
+                    else if (tab === 'pix_draw') setTab('pricing');
                     else if (tab === 'pricing') setTab('prizes');
                     else if (tab === 'prizes') setTab('info');
                   }}
@@ -744,13 +938,14 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
                 </button>
               )}
 
-              {tab !== 'pix_draw' && (
+              {tab !== 'team' && (
                 <button
                   type="button"
                   onClick={() => {
                     if (tab === 'info') setTab('prizes');
                     else if (tab === 'prizes') setTab('pricing');
                     else if (tab === 'pricing') setTab('pix_draw');
+                    else if (tab === 'pix_draw') setTab('team');
                   }}
                   className="px-3 py-2 bg-[#f0f4ee] hover:bg-[#dce7d8] text-[#3d4b3d] rounded-xl font-bold"
                 >
