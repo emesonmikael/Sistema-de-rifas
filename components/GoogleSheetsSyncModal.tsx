@@ -427,11 +427,14 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                 {generateGoogleAppsScriptCode()}
               </pre>
 
-              <div className="p-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-[11px] text-[#423d38] space-y-1">
+              <div className="p-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-[11px] text-[#423d38] space-y-1.5">
                 <span className="font-bold text-[#1e7e34] block">✨ Ciclo Completo de Sincronização Suportado:</span>
                 <p>• <strong>Salvar (POST):</strong> Gravação automática ou manual das cotas, nomes, telefones, vendedores e resumo financeiro.</p>
-                <p>• <strong>Carregar (GET):</strong> Leitura bi-direcional multi-abas com descoberta automática de vendedores e números.</p>
+                <p>• <strong>Carregar Todas as Campanhas (GET):</strong> Carrega simultaneamente todas as abas de rifas da planilha no painel.</p>
                 <p>• <strong>Apagar (DELETE_RAFFLE):</strong> Ao apagar uma rifa no sistema, o comando exclui a aba correspondente na sua planilha Google Sheets.</p>
+                <div className="mt-2 pt-1 border-t border-[#eee4db] text-[#b45309] font-medium">
+                  ⚠️ <strong>Dica de Implantação no Google:</strong> Sempre que colar o código atualizado no Apps Script, clique em <strong>Implantar &gt; Gerenciar implantações &gt; Editar (ícone de lápis) &gt; Versão: Nova versão &gt; Implantar</strong>. Assim o Google atualiza a versão ativa do seu Webhook!
+                </div>
               </div>
             </div>
           )}

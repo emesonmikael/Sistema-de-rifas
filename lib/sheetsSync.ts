@@ -1,6 +1,6 @@
 import { Raffle, SystemData, RaffleNumber, Seller } from '@/types/raffle';
 import { DEFAULT_SHEETS_WEBHOOK_URL } from './sheetsConfig';
-import { saveStoredData, getStoredData, createNewRaffle, setActiveRaffleId, getDeletedRaffleTitles } from './storage';
+import { saveStoredData, getStoredData, createNewRaffle, setActiveRaffleId, getDeletedRaffleTitles, unrecordDeletedRaffle } from './storage';
 
 export interface GoogleSheetsConfig {
   webhookUrl: string; // The Google Apps Script Web App URL
@@ -127,18 +127,19 @@ export async function fetchRaffleFromGoogleSheets(
 
     if (result.raffles && Array.isArray(result.raffles) && result.raffles.length > 0) {
       for (const r of result.raffles) {
-        if (r && r.cotas && Array.isArray(r.cotas) && r.cotas.length > 0) {
-          const cleanTitle = (r.title || r.sheetName || 'Rifa').replace(/^Bilhetes\s*-\s*/i, '').trim();
+        if (r && (r.title || r.sheetName)) {
+          const rawTitle = (r.title || r.sheetName || 'Rifa').trim();
+          const cleanTitle = rawTitle.replace(/^Bilhetes\s*-\s*/i, '').trim();
           importedRaffles.push({
-            title: cleanTitle,
-            sheetName: r.sheetName,
-            cotas: r.cotas,
+            title: cleanTitle || rawTitle,
+            sheetName: r.sheetName || `Bilhetes - ${cleanTitle || rawTitle}`,
+            cotas: Array.isArray(r.cotas) ? r.cotas : [],
           });
         }
       }
     }
 
-    // Fallback if only single cotas array is provided
+    // Fallback if only single cotas array is provided (legacy format)
     if (importedRaffles.length === 0 && result.cotas && Array.isArray(result.cotas) && result.cotas.length > 0) {
       importedRaffles.push({
         title: (result.meta && result.meta.titulo) || 'Nova Rifa',
@@ -148,35 +149,35 @@ export async function fetchRaffleFromGoogleSheets(
     }
 
     if (importedRaffles.length > 0) {
-      const deletedTitles = getDeletedRaffleTitles();
+      // Set to track which raffles in current.raffles have already been claimed by an imported sheet
+      const claimedIndices = new Set<number>();
 
-      for (const rData of importedRaffles) {
+      for (let idx = 0; idx < importedRaffles.length; idx++) {
+        const rData = importedRaffles[idx];
         const raffleTitle = rData.title;
-        const cotasArray = rData.cotas;
+        const cotasArray = rData.cotas || [];
 
-        // If this raffle was explicitly deleted by user, do not recreate it
+        // If user imports from spreadsheet, remove any stale deletion flag for this title
+        unrecordDeletedRaffle(raffleTitle);
+
         const cleanTitleLower = raffleTitle.toLowerCase().trim();
-        if (deletedTitles.includes(cleanTitleLower)) {
-          const existsInLocal = current.raffles.some(
-            (r) => r.title.toLowerCase().trim() === cleanTitleLower
+        const sheetTitleClean = (rData.sheetName || '').replace(/^Bilhetes\s*-\s*/i, '').toLowerCase().trim();
+
+        // Match existing raffle by title or sheet name, ensuring each imported tab gets its OWN raffle
+        let targetIndex = current.raffles.findIndex((r, i) => {
+          if (claimedIndices.has(i)) return false;
+          const rTitleLower = r.title.toLowerCase().trim();
+          return (
+            rTitleLower === cleanTitleLower ||
+            (sheetTitleClean && rTitleLower === sheetTitleClean) ||
+            (cleanTitleLower.length > 4 && (rTitleLower.includes(cleanTitleLower) || cleanTitleLower.includes(rTitleLower)))
           );
-          if (!existsInLocal) {
-            continue;
-          }
-        }
+        });
 
-        // Try to match existing raffle by title or ID
-        let targetIndex = current.raffles.findIndex(
-          (r) =>
-            r.id === raffleId ||
-            r.title.toLowerCase().trim() === raffleTitle.toLowerCase().trim() ||
-            (rData.sheetName && r.title.toLowerCase().includes(rData.sheetName.toLowerCase())) ||
-            (rData.sheetName && rData.sheetName.toLowerCase().includes(r.title.toLowerCase()))
-        );
-
-        // If only default demo raffle exists, adapt it to the real imported raffle
+        // If only 1 raffle exists in current and it's the virgin demo raffle, adapt it to the first imported raffle
         if (
           targetIndex === -1 &&
+          idx === 0 &&
           current.raffles.length === 1 &&
           (current.raffles[0].id === 'demo-raffle-01' || current.raffles[0].id === 'raffle-sao-jose-operario')
         ) {
@@ -190,8 +191,8 @@ export async function fetchRaffleFromGoogleSheets(
         });
 
         if (targetIndex === -1) {
-          // Create new raffle for this tab
-          const newRaffleId = `raffle-sheet-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+          // Create new separate raffle for this tab so all campaigns appear simultaneously
+          const newRaffleId = `raffle-sheet-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`;
           const initialNumbers: Record<number, RaffleNumber> = {};
           for (let i = 1; i <= Math.max(maxNum, 50); i++) {
             initialNumbers[i] = { number: i, status: 'available' };
@@ -200,7 +201,7 @@ export async function fetchRaffleFromGoogleSheets(
             id: newRaffleId,
             title: raffleTitle,
             category: 'Ação Solidária',
-            causeDescription: 'Em prol da comunidade',
+            causeDescription: 'Campanha importada da Planilha Google Sheets',
             chapelOrOrgName: (result.meta && result.meta.entidade) || 'Coordenação da Rifa',
             location: 'Comunidade Paroquial',
             pricePerNumber: (result.meta && result.meta.precoPorNumero) || 10,
@@ -230,6 +231,9 @@ export async function fetchRaffleFromGoogleSheets(
           current.raffles.push(createdRaffle);
           targetIndex = current.raffles.length - 1;
         }
+
+        // Mark this local raffle index as claimed by this sheet
+        claimedIndices.add(targetIndex);
 
         const targetRaffle = current.raffles[targetIndex];
         if (raffleTitle && raffleTitle !== 'Rifa' && !targetRaffle.title.includes(raffleTitle)) {
@@ -294,25 +298,10 @@ export async function fetchRaffleFromGoogleSheets(
         current.raffles[targetIndex] = targetRaffle;
       }
 
-      // If active raffle has 0 sales or was demo, switch active to the raffle with most sales
-      const currentActive = current.raffles.find((r) => r.id === current.activeRaffleId);
-      const activeSales = currentActive
-        ? Object.values(currentActive.numbers).filter((n) => n.status !== 'available').length
-        : 0;
-
-      if (activeSales === 0) {
-        let bestRaffle = current.raffles[0];
-        let maxSales = 0;
-        for (const r of current.raffles) {
-          const count = Object.values(r.numbers).filter((n) => n.status !== 'available').length;
-          if (count > maxSales) {
-            maxSales = count;
-            bestRaffle = r;
-          }
-        }
-        if (bestRaffle) {
-          current.activeRaffleId = bestRaffle.id;
-        }
+      // Ensure active raffle exists
+      const activeExists = current.raffles.some((r) => r.id === current.activeRaffleId);
+      if (!activeExists && current.raffles.length > 0) {
+        current.activeRaffleId = current.raffles[0].id;
       }
     }
 
@@ -379,7 +368,7 @@ export async function fetchRaffleFromGoogleSheets(
 
     return {
       success: true,
-      message: `Planilha sincronizada! ${totalImportedActiveNumbers} cota(s) e equipe de vendedores atualizados com sucesso.`,
+      message: `Planilha sincronizada! ${importedRaffles.length} campanha(s) e ${totalImportedActiveNumbers} cota(s) ativas carregadas com sucesso.`,
       numbersCount: totalImportedActiveNumbers,
       data: result,
     };
@@ -658,18 +647,19 @@ function doPost(e) {
     // =========================================================================
     // AÇÃO PADRÃO: GRAVAR OU ATUALIZAR COTAS DA RIFA
     // =========================================================================
-    var sheetTitle = (data.rifa ? data.rifa.titulo : "Rifa").substring(0, 25);
+    var sheetTitle = (data.rifa ? data.rifa.titulo : "Rifa").substring(0, 45).trim();
     var sheetName = "Bilhetes - " + sheetTitle;
     var sheet = ss.getSheetByName(sheetName);
 
-    // Se não encontrou pelo nome exato, tentar reaproveitar aba existente com mesmo título
+    // Se não encontrou pelo nome exato, tentar reaproveitar aba existente com mesmo título limpo
     if (!sheet) {
       var allS = ss.getSheets();
       for (var k = 0; k < allS.length; k++) {
         var existingName = allS[k].getName();
         if (existingName !== "Resumo Geral" && existingName !== "Equipe & Vendedores") {
-          if (existingName.toLowerCase().indexOf(sheetTitle.toLowerCase()) !== -1 ||
-              sheetTitle.toLowerCase().indexOf(existingName.toLowerCase().replace(/^bilhetes\s*-\s*/i, "")) !== -1) {
+          var cleanExisting = existingName.replace(/^bilhetes\s*-\s*/i, "").toLowerCase().trim();
+          var cleanTarget = sheetTitle.toLowerCase().trim();
+          if (cleanExisting === cleanTarget || existingName.toLowerCase() === sheetName.toLowerCase()) {
             sheet = allS[k];
             break;
           }
@@ -869,7 +859,17 @@ function doGet(e) {
 
       var lastR = sh.getLastRow();
       var lastC = Math.max(sh.getLastColumn(), 11);
-      if (lastR < 2) continue; // Aba vazia
+      var cleanTitle = sName.replace(/^Bilhetes\s*-\s*/i, "").trim() || ("Campanha " + (allRaffles.length + 1));
+
+      if (lastR < 2) {
+        // Aba sem dados ou apenas cabeçalho: incluir como campanha disponível
+        allRaffles.push({
+          sheetName: sName,
+          title: cleanTitle,
+          cotas: []
+        });
+        continue;
+      }
 
       // Ler cabeçalho para identificar colunas dinamicamente
       var headerRow = sh.getRange(1, 1, 1, lastC).getValues()[0];
@@ -889,23 +889,23 @@ function doGet(e) {
 
       for (var h = 0; h < headerRow.length; h++) {
         var colName = String(headerRow[h] || "").toLowerCase().trim();
-        if (colName.indexOf("n") !== -1 && (colName.indexOf("úm") !== -1 || colName.indexOf("um") !== -1 || colName.indexOf("cota") !== -1 || colName.indexOf("bilhete") !== -1)) {
+        if (colName === "nº" || colName === "n°" || colName === "n" || colName === "#" || colName === "num" || (colName.indexOf("n") !== -1 && (colName.indexOf("úm") !== -1 || colName.indexOf("um") !== -1 || colName.indexOf("cota") !== -1 || colName.indexOf("bilhete") !== -1))) {
           colMap.numero = h;
-        } else if (colName.indexOf("status") !== -1 || colName.indexOf("situa") !== -1) {
+        } else if (colName.indexOf("status") !== -1 || colName.indexOf("situa") !== -1 || colName.indexOf("estado") !== -1) {
           colMap.status = h;
-        } else if (colName.indexOf("comprador") !== -1 || colName.indexOf("cliente") !== -1 || colName.indexOf("nome") !== -1) {
+        } else if (colName.indexOf("vendedor") !== -1 || colName.indexOf("respons") !== -1) {
+          colMap.vendedor = h;
+        } else if (colName.indexOf("comprador") !== -1 || colName.indexOf("cliente") !== -1 || (colName.indexOf("nome") !== -1 && colName.indexOf("vendedor") === -1)) {
           colMap.comprador = h;
         } else if (colName.indexOf("whats") !== -1 || colName.indexOf("tel") !== -1 || colName.indexOf("cel") !== -1 || colName.indexOf("fone") !== -1) {
           colMap.telefone = h;
-        } else if (colName.indexOf("vendedor") !== -1 || colName.indexOf("respons") !== -1) {
-          colMap.vendedor = h;
         } else if (colName.indexOf("valor") !== -1 || colName.indexOf("pre") !== -1) {
           colMap.valor = h;
-        } else if (colName.indexOf("forma") !== -1 || colName.indexOf("pgto") !== -1) {
+        } else if (colName.indexOf("forma") !== -1 || colName.indexOf("pgto") !== -1 || (colName.indexOf("pag") !== -1 && colName.indexOf("data") === -1)) {
           colMap.forma = h;
         } else if (colName.indexOf("reserva") !== -1) {
           colMap.dataReserva = h;
-        } else if (colName.indexOf("pagamento") !== -1) {
+        } else if (colName.indexOf("data pag") !== -1 || (colName.indexOf("pag") !== -1 && colName.indexOf("data") !== -1)) {
           colMap.dataPagamento = h;
         } else if (colName.indexOf("recibo") !== -1 || colName.indexOf("código") !== -1 || colName.indexOf("codigo") !== -1) {
           colMap.recibo = h;
@@ -949,7 +949,6 @@ function doGet(e) {
         }
       }
 
-      var cleanTitle = sName.replace(/^Bilhetes\s*-\s*/i, "").trim() || metaInfo.titulo || "Rifa Paroquial";
       allRaffles.push({
         sheetName: sName,
         title: cleanTitle,
@@ -963,6 +962,7 @@ function doGet(e) {
         meta: metaInfo,
         raffles: allRaffles,
         vendedores: sellersList,
+        count: allRaffles.length,
         cotas: allRaffles[0] ? allRaffles[0].cotas : [],
         fetchedAt: new Date().toISOString()
       })
