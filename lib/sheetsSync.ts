@@ -34,6 +34,7 @@ export function getSheetsConfig(): GoogleSheetsConfig {
       const parsed = JSON.parse(raw);
       return {
         ...parsed,
+        autoSync: parsed.autoSync !== false,
         webhookUrl: parsed.webhookUrl || DEFAULT_SHEETS_WEBHOOK_URL,
       };
     }

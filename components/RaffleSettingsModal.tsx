@@ -21,8 +21,11 @@ import {
   Tag,
   Users,
   UserCheck,
+  FileSpreadsheet,
+  CheckCircle2,
 } from 'lucide-react';
 import { sounds } from '@/lib/sound';
+import { getSheetsConfig } from '@/lib/sheetsSync';
 
 export interface InitialCoordinatorData {
   name: string;
@@ -162,6 +165,9 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
   };
 
   const calculatedTotalRevenue = (Number(pricePerNumber) || 0) * (Number(totalNumbers) || 0);
+
+  const sheetsConfig = getSheetsConfig();
+  const hasSheetsWebhook = Boolean(sheetsConfig?.webhookUrl);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -917,6 +923,18 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Google Sheets Status Banner */}
+          {hasSheetsWebhook && (
+            <div className="mx-1 my-2 flex items-center gap-2 px-3 py-2 bg-[#f0f7ef] border border-[#c3dfbf] text-[#2c5828] rounded-xl text-xs font-semibold">
+              <FileSpreadsheet className="w-4 h-4 text-[#2c5828] shrink-0" />
+              <span>
+                {isNew
+                  ? 'Planilha Google Sheets Conectada: Ao criar esta rifa, uma nova aba com todas as cotas e detalhes será gerada automaticamente na sua planilha!'
+                  : 'Planilha Google Sheets Conectada: Ao salvar, as atualizações serão sincronizadas diretamente na sua planilha!'}
+              </span>
             </div>
           )}
 

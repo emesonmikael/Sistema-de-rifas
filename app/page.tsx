@@ -322,11 +322,13 @@ export default function Home() {
   const handleSaveSeller = (sellerData: Partial<Seller> & { name: string; phone: string }) => {
     addOrUpdateSeller(sellerData);
     showToast(`Vendedor "${sellerData.name}" salvo com sucesso!`);
+    if (activeRaffle) triggerSheetsAutoSync(activeRaffle.id);
   };
 
   const handleDeleteSeller = (sellerId: string) => {
     deleteSeller(sellerId);
     showToast('Vendedor removido com sucesso.');
+    if (activeRaffle) triggerSheetsAutoSync(activeRaffle.id);
   };
 
   const handleSelectSeller = (sellerId: string) => {
@@ -365,18 +367,21 @@ export default function Home() {
     if (!activeRaffle) return;
     addExpense(activeRaffle.id, expense);
     showToast(`Despesa "${expense.description}" registrada.`);
+    triggerSheetsAutoSync(activeRaffle.id);
   };
 
   const handleDeleteExpense = (expenseId: string) => {
     if (!activeRaffle) return;
     deleteExpense(activeRaffle.id, expenseId);
     showToast('Despesa removida.');
+    triggerSheetsAutoSync(activeRaffle.id);
   };
 
   // Draw Winner
   const handleSaveWinner = (winner: Winner) => {
     if (!activeRaffle) return;
     recordWinner(activeRaffle.id, winner);
+    triggerSheetsAutoSync(activeRaffle.id);
   };
 
   // Create new raffle
@@ -442,7 +447,26 @@ export default function Home() {
 
     const created = createNewRaffle(newRaffle);
     setShowNewRaffleModal(false);
-    showToast(`Nova rifa "${created.title}" criada com sucesso!`, 'success');
+
+    // Auto-sync directly to connected Google Sheets Webhook without requiring manual user action
+    const sheetsConfig = getSheetsConfig();
+    if (sheetsConfig.webhookUrl) {
+      showToast(`Criando aba e salvando "${created.title}" na Planilha Google Sheets...`, 'info');
+      syncRaffleToGoogleSheets(created, 'FULL_SYNC')
+        .then((res) => {
+          if (res.success) {
+            showToast(`Nova rifa "${created.title}" salva automaticamente na Planilha Google Sheets!`, 'success');
+          } else {
+            showToast(`Rifa criada! Status planilha: ${res.message}`, 'info');
+          }
+        })
+        .catch((err) => {
+          console.error('Erro ao salvar nova rifa diretamente no Google Sheets:', err);
+          showToast(`Nova rifa "${created.title}" criada localmente.`, 'info');
+        });
+    } else {
+      showToast(`Nova rifa "${created.title}" criada com sucesso!`, 'success');
+    }
   };
 
   // Update existing raffle
@@ -456,6 +480,7 @@ export default function Home() {
     updateRaffle(updated);
     setShowEditRaffleModal(false);
     showToast(`Rifa "${updated.title}" atualizada com sucesso!`);
+    triggerSheetsAutoSync(updated);
   };
 
   // Expand raffle total numbers (e.g. +10, +25, +50)
@@ -464,6 +489,7 @@ export default function Home() {
     const res = expandRaffleNumbers(activeRaffle.id, additionalCount);
     if (res.success) {
       showToast(res.message, 'success');
+      triggerSheetsAutoSync(activeRaffle.id);
     }
   };
 
