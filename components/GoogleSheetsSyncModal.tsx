@@ -237,10 +237,10 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
               <div className="bg-[#f0f9f1] border border-[#c8e6c9] rounded-2xl p-4 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1e7e34]">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Sincronização Bi-Direcional (Ler e Gravar):</span>
+                  <span>Sincronização Total Multi-Dispositivo (Ler e Gravar):</span>
                 </div>
                 <p className="text-xs text-[#2d2a26] leading-relaxed">
-                  Ao abrir o site, os dados salvos na sua planilha do Google são carregados automaticamente. Ao fazer uma reserva ou marcar como pago, a planilha é atualizada em tempo real!
+                  Ao abrir o site em qualquer computador ou celular, o <strong>nome da campanha</strong>, os <strong>prêmios cadastrados</strong> (com descrições, fotos e valores), cotas e vendedores são lidos diretamente da planilha Google Sheets. Criando uma campanha em um computador, todos os outros computadores acessam tudo perfeitamente!
                 </p>
               </div>
 
@@ -429,9 +429,9 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
 
               <div className="p-3 bg-[#f8f5f0] border border-[#eee4db] rounded-xl text-[11px] text-[#423d38] space-y-1.5">
                 <span className="font-bold text-[#1e7e34] block">✨ Ciclo Completo de Sincronização Suportado:</span>
-                <p>• <strong>Salvar (POST):</strong> Gravação automática ou manual das cotas, nomes, telefones, vendedores e resumo financeiro.</p>
-                <p>• <strong>Carregar Todas as Campanhas (GET):</strong> Carrega simultaneamente todas as abas de rifas da planilha no painel.</p>
-                <p>• <strong>Apagar (DELETE_RAFFLE):</strong> Ao apagar uma rifa no sistema, o comando exclui a aba correspondente na sua planilha Google Sheets.</p>
+                <p>• <strong>Salvar (POST):</strong> Gravação automática das cotas, compradores, equipe de vendedores e de todos os <em>prêmios cadastrados</em> em abas dedicadas.</p>
+                <p>• <strong>Carregar Todas as Campanhas e Prêmios (GET):</strong> Carrega simultaneamente todas as rifas, nomes de campanhas, descrições e prêmios ao abrir o sistema em qualquer outro computador.</p>
+                <p>• <strong>Apagar (DELETE_RAFFLE):</strong> Ao apagar uma rifa no sistema, o comando exclui tanto a aba de bilhetes quanto a aba de prêmios correspondente na planilha.</p>
                 <div className="mt-2 pt-1 border-t border-[#eee4db] text-[#b45309] font-medium">
                   ⚠️ <strong>Dica de Implantação no Google:</strong> Sempre que colar o código atualizado no Apps Script, clique em <strong>Implantar &gt; Gerenciar implantações &gt; Editar (ícone de lápis) &gt; Versão: Nova versão &gt; Implantar</strong>. Assim o Google atualiza a versão ativa do seu Webhook!
                 </div>

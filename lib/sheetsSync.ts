@@ -1,4 +1,4 @@
-import { Raffle, SystemData, RaffleNumber, Seller } from '@/types/raffle';
+import { Raffle, SystemData, RaffleNumber, Seller, Prize } from '@/types/raffle';
 import { DEFAULT_SHEETS_WEBHOOK_URL } from './sheetsConfig';
 import { saveStoredData, getStoredData, createNewRaffle, setActiveRaffleId, getDeletedRaffleTitles, unrecordDeletedRaffle } from './storage';
 
@@ -124,7 +124,25 @@ export async function fetchRaffleFromGoogleSheets(
     let totalImportedActiveNumbers = 0;
 
     // Collect all raffles returned from spreadsheet
-    const importedRaffles: Array<{ title: string; sheetName?: string; cotas: any[] }> = [];
+    interface ImportedRaffleData {
+      title: string;
+      sheetName?: string;
+      cotas: any[];
+      prizes?: Prize[];
+      causeDescription?: string;
+      category?: string;
+      entidade?: string;
+      pricePerNumber?: number;
+      totalNumbers?: number;
+      chavePix?: string;
+      pixBeneficiario?: string;
+      pixCidade?: string;
+      dataSorteio?: string;
+      horaSorteio?: string;
+      localSorteio?: string;
+      regulamento?: string;
+    }
+    const importedRaffles: ImportedRaffleData[] = [];
 
     if (result.raffles && Array.isArray(result.raffles) && result.raffles.length > 0) {
       for (const r of result.raffles) {
@@ -135,6 +153,19 @@ export async function fetchRaffleFromGoogleSheets(
             title: cleanTitle || rawTitle,
             sheetName: r.sheetName || `Bilhetes - ${cleanTitle || rawTitle}`,
             cotas: Array.isArray(r.cotas) ? r.cotas : [],
+            prizes: Array.isArray(r.prizes) && r.prizes.length > 0 ? r.prizes : undefined,
+            causeDescription: r.causeDescription || '',
+            category: r.category || '',
+            entidade: r.entidade || '',
+            pricePerNumber: r.pricePerNumber ? Number(r.pricePerNumber) : undefined,
+            totalNumbers: r.totalNumbers ? Number(r.totalNumbers) : undefined,
+            chavePix: r.chavePix || '',
+            pixBeneficiario: r.pixBeneficiario || '',
+            pixCidade: r.pixCidade || '',
+            dataSorteio: r.dataSorteio || '',
+            horaSorteio: r.horaSorteio || '',
+            localSorteio: r.localSorteio || '',
+            regulamento: r.regulamento || '',
           });
         }
       }
@@ -146,6 +177,18 @@ export async function fetchRaffleFromGoogleSheets(
         title: (result.meta && result.meta.titulo) || 'Nova Rifa',
         sheetName: 'Bilhetes',
         cotas: result.cotas,
+        prizes: Array.isArray(result.prizes) && result.prizes.length > 0 ? result.prizes : undefined,
+        causeDescription: result.meta?.descricaoCausa || '',
+        category: result.meta?.categoria || '',
+        entidade: result.meta?.entidade || '',
+        pricePerNumber: result.meta?.precoPorNumero ? Number(result.meta.precoPorNumero) : undefined,
+        chavePix: result.meta?.chavePix || '',
+        pixBeneficiario: result.meta?.pixBeneficiario || '',
+        pixCidade: result.meta?.pixCidade || '',
+        dataSorteio: result.meta?.dataSorteio || '',
+        horaSorteio: result.meta?.horaSorteio || '',
+        localSorteio: result.meta?.localSorteio || '',
+        regulamento: result.meta?.regulamento || '',
       });
     }
 
@@ -201,16 +244,20 @@ export async function fetchRaffleFromGoogleSheets(
           const createdRaffle: Raffle = {
             id: newRaffleId,
             title: raffleTitle,
-            category: 'Ação Solidária',
-            causeDescription: 'Campanha importada da Planilha Google Sheets',
-            chapelOrOrgName: (result.meta && result.meta.entidade) || 'Coordenação da Rifa',
-            location: 'Comunidade Paroquial',
-            pricePerNumber: (result.meta && result.meta.precoPorNumero) || 10,
-            totalNumbers: Math.max(maxNum, 50),
-            pixKey: (result.meta && result.meta.chavePix) || 'suachavepix@email.com',
+            category: rData.category || (result.meta && result.meta.categoria) || 'Ação Solidária',
+            causeDescription: rData.causeDescription || (result.meta && result.meta.descricaoCausa) || 'Campanha importada da Planilha Google Sheets',
+            chapelOrOrgName: rData.entidade || (result.meta && result.meta.entidade) || 'Coordenação da Rifa',
+            location: rData.localSorteio || (result.meta && result.meta.localSorteio) || 'Comunidade Paroquial',
+            pricePerNumber: rData.pricePerNumber || (result.meta && result.meta.precoPorNumero) || 10,
+            totalNumbers: Math.max(maxNum, rData.totalNumbers || 50),
+            pixKey: rData.chavePix || (result.meta && result.meta.chavePix) || 'suachavepix@email.com',
             pixKeyType: 'email',
-            pixReceiverName: (result.meta && result.meta.entidade) || 'Coordenação',
-            pixCity: 'Comunidade',
+            pixReceiverName: rData.pixBeneficiario || (result.meta && result.meta.pixBeneficiario) || (result.meta && result.meta.entidade) || 'Coordenação',
+            pixCity: rData.pixCidade || (result.meta && result.meta.pixCidade) || 'Comunidade',
+            drawDate: rData.dataSorteio || (result.meta && result.meta.dataSorteio) || '',
+            drawTime: rData.horaSorteio || (result.meta && result.meta.horaSorteio) || '19:30',
+            drawLocation: rData.localSorteio || (result.meta && result.meta.localSorteio) || 'Transmissão Ao Vivo',
+            regulation: rData.regulamento || (result.meta && result.meta.regulamento) || '',
             status: 'active',
             numbers: initialNumbers,
             winners: [],
@@ -218,16 +265,20 @@ export async function fetchRaffleFromGoogleSheets(
             reservationTimeoutHours: 24,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            prizes: [
-              {
-                order: 1,
-                title: '1º PRÊMIO',
-                description: 'Prêmio Principal',
-                estimatedValue: 500,
-                donorName: 'Doação Paroquial',
-                details: 'Prêmio oficial',
-              },
-            ],
+            prizes: (rData.prizes && rData.prizes.length > 0)
+              ? rData.prizes
+              : (result.prizes && Array.isArray(result.prizes) && result.prizes.length > 0)
+                ? result.prizes
+                : [
+                    {
+                      order: 1,
+                      title: '1º PRÊMIO',
+                      description: 'Prêmio Principal da Campanha',
+                      estimatedValue: 500,
+                      donorName: 'Doação Paroquial',
+                      details: 'Prêmio oficial',
+                    },
+                  ],
           };
           current.raffles.push(createdRaffle);
           targetIndex = current.raffles.length - 1;
@@ -241,13 +292,44 @@ export async function fetchRaffleFromGoogleSheets(
           targetRaffle.title = raffleTitle;
         }
 
-        // Apply metadata if available
+        // Apply synchronized prizes from Google Sheets
+        if (rData.prizes && rData.prizes.length > 0) {
+          targetRaffle.prizes = rData.prizes;
+        } else if (result.prizes && Array.isArray(result.prizes) && result.prizes.length > 0 && (!targetRaffle.prizes || targetRaffle.prizes.length === 0)) {
+          targetRaffle.prizes = result.prizes;
+        }
+
+        // Apply synchronized campaign description and details
+        if (rData.causeDescription) targetRaffle.causeDescription = rData.causeDescription;
+        if (rData.category) targetRaffle.category = rData.category;
+        if (rData.dataSorteio) targetRaffle.drawDate = rData.dataSorteio;
+        if (rData.horaSorteio) targetRaffle.drawTime = rData.horaSorteio;
+        if (rData.localSorteio) {
+          targetRaffle.drawLocation = rData.localSorteio;
+          targetRaffle.location = rData.localSorteio;
+        }
+        if (rData.regulamento) targetRaffle.regulation = rData.regulamento;
+        if (rData.entidade) targetRaffle.chapelOrOrgName = rData.entidade;
+        if (rData.pixBeneficiario) targetRaffle.pixReceiverName = rData.pixBeneficiario;
+        if (rData.pixCidade) targetRaffle.pixCity = rData.pixCidade;
+        if (rData.pricePerNumber && rData.pricePerNumber > 0) targetRaffle.pricePerNumber = rData.pricePerNumber;
+        if (rData.chavePix) targetRaffle.pixKey = rData.chavePix;
+
+        // Apply metadata if available as fallback
         if (result.meta) {
-          if (result.meta.entidade) targetRaffle.chapelOrOrgName = result.meta.entidade;
-          if (result.meta.precoPorNumero && Number(result.meta.precoPorNumero) > 0) {
+          if (result.meta.entidade && !targetRaffle.chapelOrOrgName) targetRaffle.chapelOrOrgName = result.meta.entidade;
+          if (result.meta.precoPorNumero && Number(result.meta.precoPorNumero) > 0 && !rData.pricePerNumber) {
             targetRaffle.pricePerNumber = Number(result.meta.precoPorNumero);
           }
-          if (result.meta.chavePix) targetRaffle.pixKey = result.meta.chavePix;
+          if (result.meta.chavePix && !rData.chavePix) targetRaffle.pixKey = result.meta.chavePix;
+          if (result.meta.categoria && !targetRaffle.category) targetRaffle.category = result.meta.categoria;
+          if (result.meta.descricaoCausa && !targetRaffle.causeDescription) targetRaffle.causeDescription = result.meta.descricaoCausa;
+          if (result.meta.dataSorteio && !targetRaffle.drawDate) targetRaffle.drawDate = result.meta.dataSorteio;
+          if (result.meta.horaSorteio && !targetRaffle.drawTime) targetRaffle.drawTime = result.meta.horaSorteio;
+          if (result.meta.localSorteio && !targetRaffle.drawLocation) targetRaffle.drawLocation = result.meta.localSorteio;
+          if (result.meta.regulamento && !targetRaffle.regulation) targetRaffle.regulation = result.meta.regulamento;
+          if (result.meta.pixBeneficiario && !targetRaffle.pixReceiverName) targetRaffle.pixReceiverName = result.meta.pixBeneficiario;
+          if (result.meta.pixCidade && !targetRaffle.pixCity) targetRaffle.pixCity = result.meta.pixCidade;
         }
 
         // Ensure totalNumbers covers highest number
@@ -452,10 +534,26 @@ export async function syncRaffleToGoogleSheets(
         id: raffle.id,
         titulo: raffle.title,
         entidade: raffle.chapelOrOrgName,
+        categoria: raffle.category || 'Ação Solidária',
+        descricaoCausa: raffle.causeDescription || '',
         precoPorNumero: raffle.pricePerNumber,
         totalNumeros: raffle.totalNumbers,
         chavePix: raffle.pixKey,
+        chavePixTipo: raffle.pixKeyType || 'aleatoria',
+        pixBeneficiario: raffle.pixReceiverName || '',
+        pixCidade: raffle.pixCity || '',
         dataSorteio: raffle.drawDate || '',
+        horaSorteio: raffle.drawTime || '',
+        localSorteio: raffle.drawLocation || '',
+        regulamento: raffle.regulation || '',
+        premios: (raffle.prizes || []).map((p, idx) => ({
+          ordem: p.order || idx + 1,
+          titulo: p.title || `${idx + 1}º PRÊMIO`,
+          descricao: p.description || '',
+          valorEstimado: Number(p.estimatedValue || 0),
+          doador: p.donorName || '',
+          detalhes: p.details || '',
+        })),
       },
       cotas: numbersArray,
       despesas: expensesArray,
@@ -550,7 +648,7 @@ export async function deleteRaffleFromGoogleSheets(
 }
 
 /**
- * Generates the Google Apps Script code with bi-directional capabilities (Cotas + Resumo + Equipe de Vendedores + Exclusão de Campanhas)
+ * Generates the Google Apps Script code with bi-directional capabilities (Cotas + Prêmios + Resumo + Equipe de Vendedores + Exclusão de Campanhas)
  */
 export function generateGoogleAppsScriptCode(): string {
   return `/**
@@ -559,19 +657,20 @@ export function generateGoogleAppsScriptCode(): string {
  * =========================================================================
  * SUPORTA:
  * ✅ Gravar e Atualizar Cotas e Bilhetes (POST)
+ * ✅ Gravar e Atualizar Prêmios da Campanha em aba dedicada (POST)
  * ✅ Gravar e Atualizar Equipe de Vendedores & Metas (POST)
- * ✅ Apagar Aba da Rifa na Planilha quando excluída no Sistema (POST DELETE_RAFFLE)
- * ✅ Buscar e Restaurar Dados e Vendedores ao abrir o site em qualquer celular/PC (GET)
+ * ✅ Sincronizar Informações Completas (Título, Entidade, Prêmios, Causa, PIX, Data do Sorteio, Regulamento)
+ * ✅ Apagar Aba da Rifa e Aba de Prêmios na Planilha quando excluída no Sistema (POST DELETE_RAFFLE)
+ * ✅ Buscar e Restaurar Dados, Prêmios e Vendedores ao abrir o site em qualquer computador/celular (GET)
  * ✅ Múltiplas Rifas em abas separadas
  * 
  * INSTRUÇÕES:
  * 1. No Google Sheets, clique em: Extensões > Apps Script
  * 2. Apague todo o código e cole este arquivo completo.
  * 3. Salve (ícone disquete).
- * 4. Clique em "Implantar" > "Nova implantação" (ou Gerenciar implantações).
- * 5. Tipo: "Aplicativo da Web".
- * 6. Quem pode acessar: selecione "Qualquer pessoa" (Anyone).
- * 7. Copie a URL gerada e cole no Sistema de Rifas!
+ * 4. Clique em "Implantar" > "Gerenciar implantações" > ícone do lápis > Versão "Nova" > "Implantar"
+ *    (Ou "Nova implantação" > Tipo: "Aplicativo da Web" > Acesso: "Qualquer pessoa" > "Implantar").
+ * 5. Copie a URL gerada e cole no Sistema de Rifas!
  * =========================================================================
  */
 
@@ -613,8 +712,10 @@ function doPost(e) {
         if (targetSheetName && sNameLower === targetSheetName) isMatch = true;
         if (targetTitle && sNameLower === targetTitle) isMatch = true;
         if (targetTitle && sNameLower === ("bilhetes - " + targetTitle).substring(0, 30)) isMatch = true;
+        if (targetTitle && sNameLower === ("prêmios - " + targetTitle).substring(0, 30)) isMatch = true;
+        if (targetTitle && sNameLower === ("premios - " + targetTitle).substring(0, 30)) isMatch = true;
         if (targetTitle && sNameLower.indexOf(targetTitle) !== -1) isMatch = true;
-        if (targetTitle && targetTitle.indexOf(sNameLower.replace(/^bilhetes\s*-\s*/i, "")) !== -1) isMatch = true;
+        if (targetTitle && targetTitle.indexOf(sNameLower.replace(/^(bilhetes|prêmios|premios)\s*-\s*/i, "")) !== -1) isMatch = true;
 
         if (isMatch) {
           if (ss.getSheets().length <= 1) {
@@ -640,7 +741,7 @@ function doPost(e) {
           result: "success",
           action: "DELETE_RAFFLE",
           deletedCount: deletedCount,
-          message: "Aba da rifa excluída com sucesso da planilha Google Sheets!"
+          message: "Abas da rifa e prêmios excluídas com sucesso da planilha Google Sheets!"
         })
       ).setMimeType(ContentService.MimeType.JSON);
     }
@@ -657,7 +758,7 @@ function doPost(e) {
       var allS = ss.getSheets();
       for (var k = 0; k < allS.length; k++) {
         var existingName = allS[k].getName();
-        if (existingName !== "Resumo Geral" && existingName !== "Equipe & Vendedores") {
+        if (existingName !== "Resumo Geral" && existingName !== "Equipe & Vendedores" && !existingName.match(/^(prêmios|premios)\s*-\s*/i)) {
           var cleanExisting = existingName.replace(/^bilhetes\s*-\s*/i, "").toLowerCase().trim();
           var cleanTarget = sheetTitle.toLowerCase().trim();
           if (cleanExisting === cleanTarget || existingName.toLowerCase() === sheetName.toLowerCase()) {
@@ -710,7 +811,45 @@ function doPost(e) {
       sheet.autoResizeColumns(1, 11);
     }
 
-    // 2. Aba de Equipe e Cadastro de Vendedores
+    // 2. Aba de Prêmios da Campanha
+    if (data.rifa && data.rifa.premios && data.rifa.premios.length > 0) {
+      var prizeSheetName = "Prêmios - " + sheetTitle;
+      var prizeSheet = ss.getSheetByName(prizeSheetName);
+      if (!prizeSheet) {
+        prizeSheet = ss.getSheetByName("Premios - " + sheetTitle);
+      }
+      if (!prizeSheet) {
+        prizeSheet = ss.insertSheet(prizeSheetName);
+        var prizeHeaders = [
+          "Ordem", "Título do Prêmio", "Descrição do Prêmio", "Valor Estimado (R$)", "Doador / Parceiro", "Detalhes"
+        ];
+        prizeSheet.appendRow(prizeHeaders);
+        prizeSheet.getRange(1, 1, 1, 6).setBackground("#5A5A40").setFontColor("#FFFFFF").setFontWeight("bold");
+        prizeSheet.setFrozenRows(1);
+      }
+
+      var pLastRow = prizeSheet.getLastRow();
+      if (pLastRow > 1) {
+        prizeSheet.getRange(2, 1, pLastRow - 1, 6).clearContent();
+      }
+
+      var prizeRows = [];
+      for (var p = 0; p < data.rifa.premios.length; p++) {
+        var prz = data.rifa.premios[p];
+        prizeRows.push([
+          prz.ordem || (p + 1),
+          prz.titulo || ((p + 1) + "º PRÊMIO"),
+          prz.descricao || "",
+          prz.valorEstimado || 0,
+          prz.doador || "",
+          prz.detalhes || ""
+        ]);
+      }
+      prizeSheet.getRange(2, 1, prizeRows.length, 6).setValues(prizeRows);
+      prizeSheet.autoResizeColumns(1, 6);
+    }
+
+    // 3. Aba de Equipe e Cadastro de Vendedores
     if (data.vendedores && data.vendedores.length > 0) {
       var sellerSheet = ss.getSheetByName("Equipe & Vendedores");
       if (!sellerSheet) {
@@ -747,12 +886,13 @@ function doPost(e) {
       sellerSheet.autoResizeColumns(1, 8);
     }
 
-    // 3. Aba de Resumo Financeiro Geral
+    // 4. Aba de Resumo Financeiro Geral e Informações da Campanha
     var summarySheet = ss.getSheetByName("Resumo Geral");
     if (!summarySheet) {
       summarySheet = ss.insertSheet("Resumo Geral", 0);
       summarySheet.appendRow(["Métrica / Indicador", "Valor"]);
       summarySheet.getRange(1, 1, 1, 2).setBackground("#D48166").setFontColor("#FFFFFF").setFontWeight("bold");
+      summarySheet.setFrozenRows(1);
     }
 
     var totalArrecadado = 0;
@@ -773,16 +913,25 @@ function doPost(e) {
       }
     }
 
-    summarySheet.getRange("A2:B9").setValues([
+    var summaryRows = [
       ["Título da Rifa", data.rifa ? data.rifa.titulo : ""],
       ["Entidade / Capela", data.rifa ? data.rifa.entidade : ""],
-      ["Preço por Cota (R$)", data.rifa ? data.rifa.precoPorNumero : 10],
-      ["Chave PIX", data.rifa ? data.rifa.chavePix : ""],
+      ["Categoria", data.rifa ? (data.rifa.categoria || "Ação Solidária") : "Ação Solidária"],
+      ["Descrição da Causa", data.rifa ? (data.rifa.descricaoCausa || "") : ""],
+      ["Preço por Cota (R$)", data.rifa ? Number(data.rifa.precoPorNumero || 10) : 10],
+      ["Chave PIX", data.rifa ? (data.rifa.chavePix || "") : ""],
+      ["Beneficiário PIX", data.rifa ? (data.rifa.pixBeneficiario || "") : ""],
+      ["Cidade PIX", data.rifa ? (data.rifa.pixCidade || "") : ""],
+      ["Data do Sorteio", data.rifa ? (data.rifa.dataSorteio || "") : ""],
+      ["Horário do Sorteio", data.rifa ? (data.rifa.horaSorteio || "") : ""],
+      ["Local do Sorteio", data.rifa ? (data.rifa.localSorteio || "") : ""],
+      ["Regulamento", data.rifa ? (data.rifa.regulamento || "") : ""],
       ["Total de Cotas Pagas", totalPago],
       ["Total de Cotas Reservadas", totalReservado],
       ["Total de Cotas Disponíveis", totalLivre],
       ["Valor Total Arrecadado (R$)", totalArrecadado]
-    ]);
+    ];
+    summarySheet.getRange(2, 1, summaryRows.length, 2).setValues(summaryRows);
     summarySheet.autoResizeColumns(1, 2);
 
     return ContentService.createTextOutput(
@@ -806,15 +955,23 @@ function doGet(e) {
     var summarySheet = ss.getSheetByName("Resumo Geral");
     var metaInfo = {};
     if (summarySheet && summarySheet.getLastRow() >= 2) {
-      var sumValues = summarySheet.getRange(2, 1, Math.min(summarySheet.getLastRow() - 1, 10), 2).getValues();
+      var sumValues = summarySheet.getRange(2, 1, summarySheet.getLastRow() - 1, 2).getValues();
       for (var k = 0; k < sumValues.length; k++) {
-        var key = String(sumValues[k][0] || "").trim();
+        var key = String(sumValues[k][0] || "").toLowerCase().trim();
         var val = sumValues[k][1];
-        if (key.indexOf("Título") !== -1) metaInfo.titulo = String(val);
-        if (key.indexOf("Entidade") !== -1) metaInfo.entidade = String(val);
-        if (key.indexOf("Preço") !== -1) metaInfo.precoPorNumero = Number(val);
-        if (key.indexOf("PIX") !== -1) metaInfo.chavePix = String(val);
-        if (key.indexOf("Total de Cotas") !== -1) metaInfo.totalNumeros = Number(val);
+        if (key.indexOf("título") !== -1 || key.indexOf("titulo") !== -1) metaInfo.titulo = String(val);
+        if (key.indexOf("entidade") !== -1) metaInfo.entidade = String(val);
+        if (key.indexOf("categoria") !== -1) metaInfo.categoria = String(val);
+        if (key.indexOf("causa") !== -1 || key.indexOf("objetivo") !== -1) metaInfo.descricaoCausa = String(val);
+        if (key.indexOf("preço") !== -1 || key.indexOf("preco") !== -1) metaInfo.precoPorNumero = Number(val);
+        if (key.indexOf("chave pix") !== -1 || key === "pix") metaInfo.chavePix = String(val);
+        if (key.indexOf("beneficiário") !== -1 || key.indexOf("beneficiario") !== -1) metaInfo.pixBeneficiario = String(val);
+        if (key.indexOf("cidade") !== -1) metaInfo.pixCidade = String(val);
+        if (key.indexOf("data do sorteio") !== -1) metaInfo.dataSorteio = String(val);
+        if (key.indexOf("horário") !== -1 || key.indexOf("horario") !== -1) metaInfo.horaSorteio = String(val);
+        if (key.indexOf("local do sorteio") !== -1) metaInfo.localSorteio = String(val);
+        if (key.indexOf("regulamento") !== -1) metaInfo.regulamento = String(val);
+        if (key.indexOf("total de cotas pagas") !== -1) metaInfo.cotasPagas = Number(val);
       }
     }
 
@@ -853,8 +1010,8 @@ function doGet(e) {
       var sh = sheets[s];
       var sName = sh.getName();
 
-      // Ignorar abas de sistema
-      if (sName === "Resumo Geral" || sName === "Equipe & Vendedores") {
+      // Ignorar abas de sistema e abas de prêmios no loop principal de bilhetes
+      if (sName === "Resumo Geral" || sName === "Equipe & Vendedores" || sName.match(/^(prêmios|premios)\s*-\s*/i)) {
         continue;
       }
 
@@ -862,12 +1019,49 @@ function doGet(e) {
       var lastC = Math.max(sh.getLastColumn(), 11);
       var cleanTitle = sName.replace(/^Bilhetes\s*-\s*/i, "").trim() || ("Campanha " + (allRaffles.length + 1));
 
+      // Buscar aba de prêmios correspondente a esta campanha
+      var prizeSheet = ss.getSheetByName("Prêmios - " + cleanTitle) || 
+                       ss.getSheetByName("Prêmios - " + sName) ||
+                       ss.getSheetByName("Premios - " + cleanTitle) ||
+                       ss.getSheetByName("Premios - " + sName);
+      var prizesList = [];
+      if (prizeSheet && prizeSheet.getLastRow() >= 2) {
+        var pRows = prizeSheet.getRange(2, 1, prizeSheet.getLastRow() - 1, 6).getValues();
+        for (var pr = 0; pr < pRows.length; pr++) {
+          var pRow = pRows[pr];
+          var pTitle = String(pRow[1] || "").trim();
+          var pDesc = String(pRow[2] || "").trim();
+          if (pTitle || pDesc) {
+            prizesList.push({
+              order: Number(pRow[0] || (pr + 1)),
+              title: pTitle || ((pr + 1) + "º PRÊMIO"),
+              description: pDesc || "Prêmio da Campanha",
+              estimatedValue: Number(pRow[3] || 0),
+              donorName: String(pRow[4] || ""),
+              details: String(pRow[5] || "")
+            });
+          }
+        }
+      }
+
       if (lastR < 2) {
         // Aba sem dados ou apenas cabeçalho: incluir como campanha disponível
         allRaffles.push({
           sheetName: sName,
           title: cleanTitle,
-          cotas: []
+          cotas: [],
+          prizes: prizesList,
+          causeDescription: metaInfo.descricaoCausa || "",
+          category: metaInfo.categoria || "Ação Solidária",
+          entidade: metaInfo.entidade || "",
+          pricePerNumber: metaInfo.precoPorNumero || 10,
+          chavePix: metaInfo.chavePix || "",
+          pixBeneficiario: metaInfo.pixBeneficiario || "",
+          pixCidade: metaInfo.pixCidade || "",
+          dataSorteio: metaInfo.dataSorteio || "",
+          horaSorteio: metaInfo.horaSorteio || "",
+          localSorteio: metaInfo.localSorteio || "",
+          regulamento: metaInfo.regulamento || ""
         });
         continue;
       }
@@ -953,7 +1147,19 @@ function doGet(e) {
       allRaffles.push({
         sheetName: sName,
         title: cleanTitle,
-        cotas: cotas
+        cotas: cotas,
+        prizes: prizesList,
+        causeDescription: metaInfo.descricaoCausa || "",
+        category: metaInfo.categoria || "Ação Solidária",
+        entidade: metaInfo.entidade || "",
+        pricePerNumber: metaInfo.precoPorNumero || 10,
+        chavePix: metaInfo.chavePix || "",
+        pixBeneficiario: metaInfo.pixBeneficiario || "",
+        pixCidade: metaInfo.pixCidade || "",
+        dataSorteio: metaInfo.dataSorteio || "",
+        horaSorteio: metaInfo.horaSorteio || "",
+        localSorteio: metaInfo.localSorteio || "",
+        regulamento: metaInfo.regulamento || ""
       });
     }
 
@@ -965,6 +1171,7 @@ function doGet(e) {
         vendedores: sellersList,
         count: allRaffles.length,
         cotas: allRaffles[0] ? allRaffles[0].cotas : [],
+        prizes: allRaffles[0] ? allRaffles[0].prizes : [],
         fetchedAt: new Date().toISOString()
       })
     ).setMimeType(ContentService.MimeType.JSON);
