@@ -54,6 +54,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseCategory, setExpenseCategory] = useState<Expense['category']>('premio');
+  const [expenseError, setExpenseError] = useState<string | null>(null);
 
   // Calculations
   const allNumbers = Object.values(raffle.numbers);
@@ -129,9 +130,10 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
 
   const handleCreateExpense = (e: React.FormEvent) => {
     e.preventDefault();
+    setExpenseError(null);
     const amountNum = parseFloat(expenseAmount.replace(',', '.'));
     if (!expenseDesc.trim() || isNaN(amountNum) || amountNum <= 0) {
-      alert('Preencha a descrição e um valor válido de despesa.');
+      setExpenseError('Preencha a descrição e um valor válido de despesa.');
       return;
     }
 
@@ -146,6 +148,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
     sounds.playSuccess();
     setExpenseDesc('');
     setExpenseAmount('');
+    setExpenseError(null);
     setShowExpenseModal(false);
   };
 
@@ -638,6 +641,12 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
                   <option value="outro">Outras Despesas</option>
                 </select>
               </div>
+
+              {expenseError && (
+                <div className="p-3 bg-[#fdf1eb] border border-[#f0c3b4] rounded-xl text-[#b35c43] text-xs font-bold animate-fade-in">
+                  {expenseError}
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 <button

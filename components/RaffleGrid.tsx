@@ -17,6 +17,95 @@ interface RaffleGridProps {
   onOpenExpandNumbers?: () => void;
 }
 
+interface NumberCardProps {
+  item: RaffleNumber;
+  isSelected: boolean;
+  onToggle: (num: number) => void;
+  onInspect?: (item: RaffleNumber) => void;
+}
+
+const NumberGridCard = React.memo(function NumberGridCard({
+  item,
+  isSelected,
+  onToggle,
+  onInspect,
+}: NumberCardProps) {
+  const isPaid = item.status === 'paid';
+  const isReserved = item.status === 'reserved';
+  const isAvailable = item.status === 'available';
+
+  let colorClass = 'bg-white text-[#2d2a26] border-[#eee4db] hover:border-[#5A5A40] active:bg-[#f8f5f0] shadow-2xs';
+  if (isSelected) {
+    colorClass = 'bg-[#D48166] text-white border-[#b35c43] ring-2 sm:ring-3 ring-[#f0c3b4] shadow-md scale-[1.02] z-10';
+  } else if (isPaid) {
+    colorClass = 'bg-[#5A5A40] text-white border-[#484832] opacity-95';
+  } else if (isReserved) {
+    colorClass = 'bg-[#fdf1eb] text-[#D48166] border-[#f0c3b4] ring-2 ring-[#fbe7df]';
+  }
+
+  const handleClick = () => {
+    if (isAvailable || isSelected) {
+      onToggle(item.number);
+      sounds.playPop();
+    } else if (onInspect) {
+      onInspect(item);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`group relative min-h-[54px] sm:min-h-[68px] aspect-square rounded-xl sm:rounded-2xl flex flex-col items-center justify-center p-0.5 sm:p-1 transition-transform duration-75 border-2 font-bold select-none cursor-pointer active:scale-95 grid-item-contained ${colorClass}`}
+    >
+      {/* Number Display */}
+      <span className="text-lg sm:text-2xl font-black font-mono tracking-tight leading-none">
+        {item.number.toString().padStart(2, '0')}
+      </span>
+
+      {/* Status Badges on the Card */}
+      {isPaid && (
+        <div className="mt-0.5 flex flex-col items-center w-full px-0.5">
+          <span className="text-[8px] sm:text-[10px] bg-[#484832] text-white font-extrabold px-1 rounded uppercase tracking-wider leading-tight">
+            PAGO
+          </span>
+          {item.buyerName && (
+            <span className="text-[7px] sm:text-[8px] truncate max-w-full text-[#dcd5cc] font-normal px-0.5 mt-0.5 leading-tight">
+              {item.buyerName.split(' ')[0]}
+            </span>
+          )}
+        </div>
+      )}
+
+      {isReserved && (
+        <div className="mt-0.5 flex flex-col items-center w-full px-0.5">
+          <span className="text-[7px] sm:text-[9px] bg-[#D48166] text-white font-bold px-1 rounded uppercase leading-tight">
+            RESERVA
+          </span>
+          {item.buyerName && (
+            <span className="text-[7px] sm:text-[8px] truncate max-w-full text-[#b35c43] font-medium px-0.5 mt-0.5 leading-tight">
+              {item.buyerName.split(' ')[0]}
+            </span>
+          )}
+        </div>
+      )}
+
+      {isSelected && (
+        <div className="absolute top-1 right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white text-[#D48166] rounded-full flex items-center justify-center shadow-xs">
+          <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />
+        </div>
+      )}
+
+      {/* Inspect icon for reserved/paid numbers */}
+      {!isAvailable && (
+        <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#a89d91]" />
+        </div>
+      )}
+    </button>
+  );
+});
+
 export const RaffleGrid: React.FC<RaffleGridProps> = ({
   raffle,
   selectedNumbers,
@@ -30,6 +119,8 @@ export const RaffleGrid: React.FC<RaffleGridProps> = ({
   const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'reserved' | 'paid' | 'selected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const selectedSet = useMemo(() => new Set(selectedNumbers), [selectedNumbers]);
+
   const numberList = useMemo(() => {
     const list: RaffleNumber[] = [];
     for (let i = 1; i <= raffle.totalNumbers; i++) {
@@ -40,7 +131,7 @@ export const RaffleGrid: React.FC<RaffleGridProps> = ({
 
   const filteredNumbers = useMemo(() => {
     return numberList.filter((item) => {
-      const isSelected = selectedNumbers.includes(item.number);
+      const isSelected = selectedSet.has(item.number);
 
       // Status filter
       if (filterStatus === 'available' && item.status !== 'available') return false;
@@ -68,11 +159,11 @@ export const RaffleGrid: React.FC<RaffleGridProps> = ({
 
       return true;
     });
-  }, [numberList, filterStatus, searchQuery, selectedNumbers]);
+  }, [numberList, filterStatus, searchQuery, selectedSet]);
 
   // Quick Random Pickers (Surpresinha)
   const handlePickRandom = (count: number) => {
-    const available = numberList.filter((n) => n.status === 'available' && !selectedNumbers.includes(n.number));
+    const available = numberList.filter((n) => n.status === 'available' && !selectedSet.has(n.number));
     if (available.length === 0) return;
 
     // Shuffle
@@ -84,22 +175,6 @@ export const RaffleGrid: React.FC<RaffleGridProps> = ({
   };
 
   const totalSelectedPrice = selectedNumbers.length * raffle.pricePerNumber;
-
-  // Natural Tones palette for badges
-  const getNumberColorClass = (num: number, status: string, isSelected: boolean) => {
-    if (isSelected) {
-      return 'bg-[#D48166] text-white border-[#b35c43] ring-3 ring-[#f0c3b4] shadow-md scale-[1.02] z-10';
-    }
-    if (status === 'paid') {
-      return 'bg-[#5A5A40] text-white border-[#484832] opacity-95';
-    }
-    if (status === 'reserved') {
-      return 'bg-[#fdf1eb] text-[#D48166] border-[#f0c3b4] ring-2 ring-[#fbe7df]';
-    }
-
-    // Available: clean card with warm border
-    return 'bg-white text-[#2d2a26] border-[#eee4db] hover:border-[#5A5A40] active:bg-[#f8f5f0] shadow-2xs';
-  };
 
   return (
     <div className="w-full max-w-5xl mx-auto px-2 sm:px-6 pb-32 md:pb-24">
@@ -281,79 +356,17 @@ export const RaffleGrid: React.FC<RaffleGridProps> = ({
       </div>
 
       {/* The Visual Grid matching Natural Tones aesthetic */}
-      <div className="bg-[#f8f5f0] p-2.5 sm:p-6 rounded-2xl sm:rounded-3xl border-2 border-[#eee4db] shadow-xs">
-        <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5 sm:gap-3">
-          {filteredNumbers.map((item) => {
-            const isSelected = selectedNumbers.includes(item.number);
-            const isPaid = item.status === 'paid';
-            const isReserved = item.status === 'reserved';
-            const isAvailable = item.status === 'available';
-
-            return (
-              <button
-                key={item.number}
-                type="button"
-                onClick={() => {
-                  if (isAvailable || isSelected) {
-                    onToggleNumber(item.number);
-                    sounds.playPop();
-                  } else if (onInspectNumber) {
-                    onInspectNumber(item);
-                  }
-                }}
-                className={`group relative min-h-[58px] sm:min-h-[70px] aspect-square rounded-xl sm:rounded-2xl flex flex-col items-center justify-center p-0.5 sm:p-1 transition-all duration-150 border-2 font-bold select-none cursor-pointer active:scale-95 ${getNumberColorClass(
-                  item.number,
-                  item.status,
-                  isSelected
-                )}`}
-              >
-                {/* Number Display */}
-                <span className="text-lg sm:text-2xl font-black font-mono tracking-tight leading-none">
-                  {item.number.toString().padStart(2, '0')}
-                </span>
-
-                {/* Status Badges on the Card */}
-                {isPaid && (
-                  <div className="mt-0.5 flex flex-col items-center w-full">
-                    <span className="text-[8px] sm:text-[10px] bg-[#484832] text-white font-extrabold px-1 rounded uppercase tracking-wider">
-                      PAGO
-                    </span>
-                    {item.buyerName && (
-                      <span className="text-[7px] sm:text-[8px] truncate max-w-full text-[#dcd5cc] font-normal px-0.5 mt-0.5">
-                        {item.buyerName.split(' ')[0]}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {isReserved && (
-                  <div className="mt-0.5 flex flex-col items-center w-full">
-                    <span className="text-[7px] sm:text-[9px] bg-[#D48166] text-white font-bold px-1 rounded uppercase">
-                      RESERVA
-                    </span>
-                    {item.buyerName && (
-                      <span className="text-[7px] sm:text-[8px] truncate max-w-full text-[#b35c43] font-medium px-0.5 mt-0.5">
-                        {item.buyerName.split(' ')[0]}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {isSelected && (
-                  <div className="absolute top-1 right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white text-[#D48166] rounded-full flex items-center justify-center shadow-xs">
-                    <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />
-                  </div>
-                )}
-
-                {/* Inspect icon for reserved/paid numbers */}
-                {!isAvailable && (
-                  <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#a89d91]" />
-                  </div>
-                )}
-              </button>
-            );
-          })}
+      <div className="bg-[#f8f5f0] p-2 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl border-2 border-[#eee4db] shadow-xs">
+        <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5 sm:gap-2.5 md:gap-3">
+          {filteredNumbers.map((item) => (
+            <NumberGridCard
+              key={item.number}
+              item={item}
+              isSelected={selectedSet.has(item.number)}
+              onToggle={onToggleNumber}
+              onInspect={onInspectNumber}
+            />
+          ))}
         </div>
 
         {filteredNumbers.length === 0 && (
@@ -406,7 +419,7 @@ export const RaffleGrid: React.FC<RaffleGridProps> = ({
 
       {/* Floating Bottom Drawer for Instant Checkout - Positioned above mobile bottom bar */}
       {selectedNumbers.length > 0 && (
-        <div className="fixed bottom-16 md:bottom-4 inset-x-2 sm:inset-x-4 max-w-2xl mx-auto z-40 animate-slide-up">
+        <div className="fixed bottom-18 md:bottom-6 inset-x-2 sm:inset-x-4 max-w-2xl mx-auto z-50 animate-slide-up">
           <div className="bg-[#2d2a26] text-white p-3 sm:p-4 rounded-2xl shadow-2xl border-2 border-[#5A5A40] flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#D48166] text-white flex flex-col items-center justify-center shrink-0 font-bold shadow-xs">

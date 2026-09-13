@@ -2,13 +2,22 @@
 
 /* Touch and mobile responsiveness improvements */
 @layer base {
-  html, body {
+  html {
+    -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    overflow-x: hidden;
-    max-width: 100vw;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
 
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
+  }
+
+  /* Only buttons, links and inputs should have touch-action: manipulation */
   button, a, input, select, textarea {
     touch-action: manipulation;
   }
@@ -28,4 +37,10 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Hardware accelerated containment for high-density grids */
+.grid-item-contained {
+  contain: layout style;
+  content-visibility: auto;
 }

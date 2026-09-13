@@ -37,6 +37,7 @@ export const RaffleDetailsModal: React.FC<RaffleDetailsModalProps> = ({
   onOpenEdit,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [textCopied, setTextCopied] = useState(false);
   const [showPixQr, setShowPixQr] = useState(false);
 
   const handleCopyPix = () => {
@@ -70,7 +71,8 @@ export const RaffleDetailsModal: React.FC<RaffleDetailsModalProps> = ({
     } else {
       navigator.clipboard.writeText(text);
       sounds.playSuccess();
-      alert('Texto detalhado da rifa copiado para envio no WhatsApp!');
+      setTextCopied(true);
+      setTimeout(() => setTextCopied(false), 2500);
     }
   };
 
@@ -268,10 +270,14 @@ export const RaffleDetailsModal: React.FC<RaffleDetailsModalProps> = ({
 
             <button
               onClick={handleShareWhatsApp}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-[#f0f4ee] hover:bg-[#dce7d8] text-[#3d4b3d] font-bold text-xs rounded-xl border border-[#d1dec8] transition-colors"
+              className={`flex items-center gap-1.5 px-4 py-2.5 font-bold text-xs rounded-xl border transition-colors ${
+                textCopied
+                  ? 'bg-[#1e7e34] text-white border-[#1e7e34]'
+                  : 'bg-[#f0f4ee] hover:bg-[#dce7d8] text-[#3d4b3d] border-[#d1dec8]'
+              }`}
             >
-              <Share2 className="w-4 h-4 text-[#5A5A40]" />
-              <span>Compartilhar Detalhes</span>
+              {textCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4 text-[#5A5A40]" />}
+              <span>{textCopied ? 'Copiado para WhatsApp!' : 'Compartilhar Detalhes'}</span>
             </button>
           </div>
 

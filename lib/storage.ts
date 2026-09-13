@@ -13,19 +13,20 @@ function notifyListeners() {
 
 export function subscribeToRaffleData(callback: () => void): () => void {
   listeners.add(callback);
-  const handleStorageOrWindow = () => {
-    memoryCache = null;
-    callback();
+  const handleCrossTabStorage = (e: StorageEvent) => {
+    // Only invalidate cache if our storage key changed from another browser tab
+    if (!e.key || e.key === STORAGE_KEY) {
+      memoryCache = null;
+      callback();
+    }
   };
   if (typeof window !== 'undefined') {
-    window.addEventListener('rifa_data_updated', handleStorageOrWindow);
-    window.addEventListener('storage', handleStorageOrWindow);
+    window.addEventListener('storage', handleCrossTabStorage);
   }
   return () => {
     listeners.delete(callback);
     if (typeof window !== 'undefined') {
-      window.removeEventListener('rifa_data_updated', handleStorageOrWindow);
-      window.removeEventListener('storage', handleStorageOrWindow);
+      window.removeEventListener('storage', handleCrossTabStorage);
     }
   };
 }
@@ -78,7 +79,6 @@ export function saveStoredData(data: SystemData): void {
   if (typeof window !== 'undefined') {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      window.dispatchEvent(new Event('rifa_data_updated'));
     } catch (err) {
       console.error('Failed to save raffle data:', err);
     }

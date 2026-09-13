@@ -103,6 +103,7 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
   const [coordRole, setCoordRole] = useState<'admin' | 'seller'>('admin');
   const [coordTargetNumbers, setCoordTargetNumbers] = useState(25);
   const [clearDemoSellers, setClearDemoSellers] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Detailed Prizes
   const [prizes, setPrizes] = useState<Prize[]>(
@@ -171,8 +172,9 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     if (!title.trim() || !pixKey.trim()) {
-      alert('Por favor, preencha o Título da Rifa e a Chave PIX.');
+      setFormError('Por favor, preencha o Título da Rifa e a Chave PIX.');
       return;
     }
 
@@ -185,7 +187,7 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
       }));
 
     if (validPrizes.length === 0) {
-      alert('Por favor, insira a descrição de pelo menos 1 prêmio.');
+      setFormError('Por favor, insira a descrição de pelo menos 1 prêmio.');
       return;
     }
 
@@ -935,6 +937,13 @@ export const RaffleSettingsModal: React.FC<RaffleSettingsModalProps> = ({
                   ? 'Planilha Google Sheets Conectada: Ao criar esta rifa, uma nova aba com todas as cotas e detalhes será gerada automaticamente na sua planilha!'
                   : 'Planilha Google Sheets Conectada: Ao salvar, as atualizações serão sincronizadas diretamente na sua planilha!'}
               </span>
+            </div>
+          )}
+
+          {/* Form Error Banner */}
+          {formError && (
+            <div className="p-3 bg-[#fdf1eb] border border-[#f0c3b4] rounded-xl text-[#b35c43] text-xs font-bold animate-fade-in">
+              {formError}
             </div>
           )}
 

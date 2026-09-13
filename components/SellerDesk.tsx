@@ -63,6 +63,7 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
   const [isPaidImmediately, setIsPaidImmediately] = useState(true);
   const [filterQuery, setFilterQuery] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Numbers associated with this seller
   const soldBySeller = useMemo(() => {
@@ -112,12 +113,13 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
 
   const handleRegisterFastSale = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     if (selectedNums.length === 0) {
-      alert('Selecione pelo menos um número disponível para a venda.');
+      setFormError('Selecione pelo menos um número disponível para a venda.');
       return;
     }
     if (!buyerName.trim()) {
-      alert('Informe o nome do comprador.');
+      setFormError('Informe o nome do comprador.');
       return;
     }
 
@@ -136,6 +138,7 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
     setSelectedNums([]);
     setBuyerName('');
     setBuyerPhone('');
+    setFormError(null);
     setTimeout(() => setSuccessToast(null), 4000);
   };
 
@@ -434,6 +437,13 @@ export const SellerDesk: React.FC<SellerDeskProps> = ({
                 Já recebeu o valor? (Confirmar como PAGO)
               </label>
             </div>
+
+            {/* Form Error Banner */}
+            {formError && (
+              <div className="p-3 bg-[#fdf1eb] border border-[#f0c3b4] rounded-xl text-[#b35c43] text-xs font-bold animate-fade-in">
+                {formError}
+              </div>
+            )}
 
             {/* Submit */}
             <button

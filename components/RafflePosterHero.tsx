@@ -46,6 +46,7 @@ export const RafflePosterHero: React.FC<RafflePosterHeroProps> = ({
   onOpenExpandNumbers,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
 
   const percentSold = Math.round((totalSold / raffle.totalNumbers) * 100);
@@ -82,7 +83,8 @@ export const RafflePosterHero: React.FC<RafflePosterHeroProps> = ({
       } else {
         navigator.clipboard.writeText(text);
         sounds.playSuccess();
-        alert('Texto e link da rifa copiados para a área de transferência!');
+        setShareSuccess(true);
+        setTimeout(() => setShareSuccess(false), 3000);
       }
     }
   };
@@ -329,13 +331,22 @@ export const RafflePosterHero: React.FC<RafflePosterHeroProps> = ({
 
                 <button
                   onClick={handleShare}
-                  className="flex items-center justify-center p-2.5 bg-[#3b3b28] hover:bg-[#2d2d1e] text-[#fdfaf7] rounded-xl border border-[#5A5A40] transition-colors"
+                  className={`flex items-center justify-center p-2.5 rounded-xl border transition-colors ${
+                    shareSuccess
+                      ? 'bg-[#1e7e34] text-white border-[#1e7e34]'
+                      : 'bg-[#3b3b28] hover:bg-[#2d2d1e] text-[#fdfaf7] border-[#5A5A40]'
+                  }`}
                   title="Compartilhar rifa"
                 >
-                  <Share2 className="w-4 h-4" />
+                  {shareSuccess ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
                 </button>
               </div>
             </div>
+            {shareSuccess && (
+              <div className="mt-2 text-center text-xs font-bold text-[#e6dfd8] bg-[#3b3b28] py-1 px-3 rounded-lg border border-[#5A5A40] animate-fade-in">
+                Link e texto copiados com sucesso!
+              </div>
+            )}
           </div>
 
           {/* Live Progress & Stats Bar */}

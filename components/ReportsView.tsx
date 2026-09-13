@@ -9,6 +9,7 @@ import {
   Share2,
   Download,
   CheckCircle2,
+  Check,
   Users,
   DollarSign,
   Award,
@@ -40,6 +41,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [reportType, setReportType] = useState<
     'launch_note' | 'financial' | 'sellers' | 'full_table' | 'parish_statement'
   >('launch_note');
+  const [summaryCopied, setSummaryCopied] = useState(false);
 
   // Search & Filter for buyers list
   const [searchTerm, setSearchTerm] = useState('');
@@ -150,7 +152,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     } else {
       navigator.clipboard.writeText(summary);
       sounds.playSuccess();
-      alert('Resumo financeiro copiado para a área de transferência!');
+      setSummaryCopied(true);
+      setTimeout(() => setSummaryCopied(false), 2500);
     }
   };
 
@@ -192,10 +195,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <button
             type="button"
             onClick={handleShareSummary}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#484832] hover:bg-[#3b3b28] text-[#fdfaf7] font-semibold text-xs rounded-xl border border-white/20 transition-colors active:scale-95"
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 font-semibold text-xs rounded-xl border transition-colors active:scale-95 ${
+              summaryCopied
+                ? 'bg-[#1e7e34] text-white border-[#1e7e34]'
+                : 'bg-[#484832] hover:bg-[#3b3b28] text-[#fdfaf7] border-white/20'
+            }`}
           >
-            <Share2 className="w-4 h-4" />
-            <span className="hidden sm:inline">WhatsApp</span>
+            {summaryCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+            <span>{summaryCopied ? 'Copiado!' : 'WhatsApp'}</span>
           </button>
 
           <button

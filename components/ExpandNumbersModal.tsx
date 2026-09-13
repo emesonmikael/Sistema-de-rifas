@@ -34,10 +34,7 @@ export const ExpandNumbersModal: React.FC<ExpandNumbersModalProps> = ({
   const newGrossGoal = newTotal * raffle.pricePerNumber;
 
   const handleConfirm = () => {
-    if (countToAdd <= 0) {
-      alert('Por favor, selecione ou digite uma quantidade válida de cotas para adicionar.');
-      return;
-    }
+    if (countToAdd <= 0) return;
     sounds.playSuccess();
     onExpand(countToAdd);
     onClose();

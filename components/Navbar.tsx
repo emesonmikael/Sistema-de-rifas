@@ -76,8 +76,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      {/* Top Header Bar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md text-[#423d38] border-b border-[#eee4db] shadow-xs w-full">
+      {/* Top Header Bar - Optimized solid background for zero GPU lag on mobile */}
+      <header className="sticky top-0 z-40 bg-white/98 text-[#423d38] border-b border-[#eee4db] shadow-xs w-full">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3">
           {/* Zone 1: Brand Title & Raffle Switcher Dropdown */}
           <div className="relative flex items-center gap-1.5 sm:gap-2.5 shrink-0" ref={dropdownRef}>
@@ -89,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setShowRaffleDropdown(!showRaffleDropdown)}
-              className="text-left group flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#f8f5f0] hover:bg-[#ede6df] border border-[#eee4db] transition-all cursor-pointer shadow-2xs max-w-[130px] xs:max-w-[160px] sm:max-w-[220px] md:max-w-[260px] lg:max-w-[300px]"
+              className="text-left group flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#f8f5f0] hover:bg-[#ede6df] border border-[#eee4db] transition-colors cursor-pointer shadow-2xs max-w-[120px] xs:max-w-[150px] sm:max-w-[220px] md:max-w-[260px] lg:max-w-[300px]"
               title="Clique para alternar, gerenciar ou criar novas rifas"
             >
               <div className="min-w-0">
@@ -318,22 +318,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Zone 3: User Auth / Profile Badge & Actions (Responsive & No-Overflow) */}
           <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 shrink-0">
-            {/* Google Sheets Sync Button */}
+            {/* Google Sheets Sync Button (hidden on extra small mobile to save space) */}
             <button
               type="button"
               onClick={onOpenSheetsSync}
-              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-[#f0f9f1] hover:bg-[#e1f3e3] text-[#1e7e34] border border-[#c8e6c9] rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
+              className="hidden sm:flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-[#f0f9f1] hover:bg-[#e1f3e3] text-[#1e7e34] border border-[#c8e6c9] rounded-xl text-xs font-bold transition-colors active:scale-95 shadow-2xs shrink-0"
               title="Sincronizar com Planilha Google Sheets"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden md:inline">Planilha</span>
             </button>
 
-            {/* Team Manager Button */}
+            {/* Team Manager Button (hidden on extra small mobile to avoid header overflow) */}
             <button
               type="button"
               onClick={onOpenSellerManager}
-              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] rounded-xl text-xs font-bold border border-[#eee4db] transition-colors active:scale-95 shrink-0"
+              className="hidden sm:flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-[#f8f5f0] hover:bg-[#eee4db] text-[#423d38] rounded-xl text-xs font-bold border border-[#eee4db] transition-colors active:scale-95 shrink-0"
               title="Cadastrar e gerenciar equipe de vendedores"
             >
               <UserCheck className="w-3.5 h-3.5 text-[#5A5A40] shrink-0" />
@@ -415,8 +415,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </header>
 
-      {/* Mobile Fixed Bottom Navigation Bar (4 columns for Sellers, 5 columns for Admin) */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#eee4db] shadow-lg pb-safe">
+      {/* Mobile Fixed Bottom Navigation Bar (Optimized solid background for 60fps scrolling) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/98 border-t border-[#eee4db] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] pb-safe">
         <div className={`grid ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} h-14 items-center justify-around px-1`}>
           <button
             type="button"

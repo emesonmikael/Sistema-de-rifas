@@ -33,7 +33,6 @@ export const DrawModal: React.FC<DrawModalProps> = ({ raffle, onSaveWinner }) =>
 
   const handleStartDraw = () => {
     if (eligibleNumbers.length === 0) {
-      alert('Não há cotas elegíveis para realizar o sorteio!');
       return;
     }
 

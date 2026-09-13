@@ -6,6 +6,21 @@
 class SoundEffects {
   private ctx: AudioContext | null = null;
   private isAudioAvailable = true;
+  private isResuming = false;
+  private unlocked = false;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      const unlock = () => {
+        if (!this.unlocked) {
+          this.unlocked = true;
+          this.getContext();
+        }
+      };
+      window.addEventListener('pointerdown', unlock, { passive: true, once: true });
+      window.addEventListener('touchstart', unlock, { passive: true, once: true });
+    }
+  }
 
   private getContext(): AudioContext | null {
     if (typeof window === 'undefined' || !this.isAudioAvailable) return null;
@@ -21,9 +36,10 @@ class SoundEffects {
           return null;
         }
       }
-      if (this.ctx && this.ctx.state === 'suspended') {
-        this.ctx.resume().catch(() => {
-          // Ignore resume failures on mobile before first gesture
+      if (this.ctx && this.ctx.state === 'suspended' && !this.isResuming) {
+        this.isResuming = true;
+        this.ctx.resume().finally(() => {
+          this.isResuming = false;
         });
       }
       return this.ctx;
@@ -49,6 +65,13 @@ class SoundEffects {
 
       osc.connect(gain);
       gain.connect(ctx.destination);
+
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      };
 
       osc.start();
       osc.stop(ctx.currentTime + 0.08);

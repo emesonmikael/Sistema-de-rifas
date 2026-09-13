@@ -243,7 +243,7 @@ export default function Home() {
       showToast(res.message, 'success');
       triggerSheetsAutoSync(activeRaffle);
     } else {
-      alert(res.message);
+      showToast(res.message, 'error');
     }
   };
 
@@ -314,7 +314,7 @@ export default function Home() {
       showToast(res.message, 'success');
       triggerSheetsAutoSync(activeRaffle);
     } else {
-      alert(res.message);
+      showToast(res.message, 'error');
     }
   };
 

@@ -48,6 +48,7 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
   const [sellerId, setSellerId] = useState(defaultSellerId || sellers[0]?.id || '');
   const [isImmediatePaid, setIsImmediatePaid] = useState(false);
   const [pixCopied, setPixCopied] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const totalPrice = selectedNumbers.length * raffle.pricePerNumber;
   const sortedNumbers = [...selectedNumbers].sort((a, b) => a - b);
@@ -62,12 +63,13 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
 
   const handleProceedToPix = (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
     if (!buyerName.trim()) {
-      alert('Por favor, informe seu nome completo para o bilhete.');
+      setValidationError('Por favor, informe seu nome completo para o bilhete.');
       return;
     }
     if (!buyerPhone.trim()) {
-      alert('Por favor, informe seu WhatsApp para receber o comprovante.');
+      setValidationError('Por favor, informe seu WhatsApp para receber o comprovante.');
       return;
     }
     setStep('pix');
@@ -201,6 +203,13 @@ export const BuyerCheckoutModal: React.FC<BuyerCheckoutModalProps> = ({
                   ))}
                 </select>
               </div>
+
+              {/* Validation Error Alert */}
+              {validationError && (
+                <div className="p-3 bg-[#fdf1eb] border border-[#f0c3b4] rounded-xl text-[#b35c43] text-xs font-bold animate-fade-in">
+                  {validationError}
+                </div>
+              )}
 
               {/* Buttons */}
               <div className="flex gap-2 pt-2">
